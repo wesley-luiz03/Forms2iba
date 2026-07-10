@@ -1,378 +1,223 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { EKLESIA_COLUMNS } from '@/lib/eklesiaColumns';
 
 interface Membro {
   id: string;
   nome: string;
-  sexo: string | null;
-  data_nascimento: string | null;
-  estado_civil: string | null;
-  cpf: string | null;
-  celular: string | null;
-  email: string | null;
-  cep: string | null;
-  endereco: string | null;
-  numero: string | null;
-  complemento: string | null;
-  bairro: string | null;
-  cidade: string | null;
-  uf: string | null;
-  nome_conjuge: string | null;
-  observacao: string | null;
-  campos_extra: Record<string, string> | null;
+  genero: string;
+  celular: string;
+  cidade: string;
+  uf: string;
+  email: string;
   created_at: string;
 }
 
-interface CustomField {
-  id: string;
-  chave: string;
-  rotulo: string;
-  tipo: string;
-  obrigatorio: boolean;
-}
-
-interface Config {
-  igreja: string;
-  arrolamento: string;
-  motivo: string;
-}
-
-function todayStamp() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function sqlEsc(v: any) {
-  if (v === undefined || v === null || v === '') return 'NULL';
-  return `'${String(v).replace(/'/g, "''")}'`;
-}
-
-export default function AdminDashboardClient({
-  initialMembros,
-  customFields,
-  config,
-}: {
-  initialMembros: Membro[];
-  customFields: CustomField[];
-  config: Config;
+export default function AdminDashboardClient({ 
+  initialMembros, 
+  customFields, 
+  config 
+}: { 
+  initialMembros: Membro[]; 
+  customFields: any[]; 
+  config: any; 
 }) {
   const router = useRouter();
-  const [membros, setMembros] = useState(initialMembros);
   const [search, setSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
+  
+  // Estado para controlar as IDs dos membros selecionados nos checkboxes
+  const [selecionados, setSelecionados] = useState<string[]>([]);
+  const [loadingExclusao, setLoadingExclusao] = useState(false);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return membros.filter((m) => {
-      if (q && !(m.nome || '').toLowerCase().includes(q)) return false;
-      if (genderFilter && m.sexo !== genderFilter) return false;
-      return true;
-    });
-  }, [membros, search, genderFilter]);
+  // Lógica Real de Filtros
+  const filtrados = initialMembros.filter((m) => {
+    const bateNome = m.nome?.toLowerCase().includes(search.toLowerCase());
+    const bateGenero = genderFilter === '' || m.genero === genderFilter;
+    return bateNome && bateGenero;
+  });
 
-  const stats = useMemo(() => {
-    const total = membros.length;
-    const masc = membros.filter((m) => m.sexo === 'Masculino').length;
-    const fem = membros.filter((m) => m.sexo === 'Feminino').length;
-    const semEmail = membros.filter((m) => !(m.email || '').trim()).length;
-    return { total, masc, fem, semEmail };
-  }, [membros]);
+  // Contadores dinâmicos
+  const total = initialMembros.length;
+  const masculino = initialMembros.filter((m) => m.genero === 'Masculino').length;
+  const feminino = initialMembros.filter((m) => m.genero === 'Feminino').length;
+  const semEmail = initialMembros.filter((m) => !m.email || m.email.trim() === '').length;
 
-  async function handleDelete(m: Membro) {
-    if (!confirm(`Excluir o cadastro de "${m.nome}"? Essa ação não pode ser desfeita.`)) return;
-    const supabase = createClient();
-    const { error } = await supabase.from('membros').delete().eq('id', m.id);
-    if (error) {
-      alert('Não foi possível excluir agora. Tente novamente.');
-      return;
-    }
-    setMembros((prev) => prev.filter((x) => x.id !== m.id));
-  }
-
-  function handleRefresh() {
-    router.refresh();
-  }
-
-  function handleExportXlsx() {
-    if (filtered.length === 0) return alert('Não há cadastros para exportar.');
-    const XLSX = require('xlsx');
-    const extraHeaders = customFields.map((f) => f.rotulo);
-    const headers = [...EKLESIA_COLUMNS, ...extraHeaders];
-
-    const rows = filtered.map((m) => {
-      const row: Record<string, string> = {
-        Igreja: config.igreja || '',
-        ArrolamentoData: '',
-        DescricaoArrolamentoMembro: config.arrolamento || '',
-        MotivoArrolamento: config.motivo || '',
-        ArrolamentoObservacao: m.observacao || '',
-        Codigo: '',
-        Nome: m.nome || '',
-        Apelido: '',
-        Sexo: m.sexo || '',
-        DataNascimento: m.data_nascimento || '',
-        Rg: '',
-        Cpf: m.cpf || '',
-        TipoSanguineo: '',
-        Doador: '',
-        DescricaoEscolaridade: '',
-        DescricaoEstadoCivil: m.estado_civil || '',
-        Natural: '',
-        Pai: '',
-        Mae: '',
-        DataBatismoEspiritoSanto: '',
-        Cep: m.cep || '',
-        Endereco: m.endereco || '',
-        Numero: m.numero || '',
-        Complemento: m.complemento || '',
-        Bairro: m.bairro || '',
-        Cidade: m.cidade || '',
-        Uf: m.uf || '',
-        Telefone: '',
-        Celular: m.celular || '',
-        TelefoneRecado: '',
-        Recado: '',
-        Email: m.email || '',
-        Http: '', Skype: '', FaceBook: '', Twitter: '',
-        Empresa_Nome: '', Empresa_Cep: '', Empresa_Endereco: '', Empresa_Numero: '', Empresa_Complemento: '',
-        Empresa_Cidade: '', Empresa_Uf: '', Empresa_Bairro: '', Empresa_Telefone: '', Empresa_Celular: '',
-        Empresa_TelefoneRecado: '', Empresa_Recado: '', Empresa_Profissao: '', Empresa_Email: '', Empresa_Http: '',
-        NomeParceiro: m.nome_conjuge || '',
-        DataUniao: '',
-      };
-      customFields.forEach((f) => {
-        row[f.rotulo] = (m.campos_extra && m.campos_extra[f.chave]) || '';
-      });
-      return row;
-    });
-
-    const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Importação EKLESIA 1.0');
-    XLSX.writeFile(wb, `cadastro_membresia_2iba_${todayStamp()}.xlsx`);
-  }
-
-  function handleExportSql() {
-    if (filtered.length === 0) return alert('Não há cadastros para exportar.');
-    const baseCols = ['nome', 'sexo', 'data_nascimento', 'estado_civil', 'cpf', 'celular', 'email', 'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'nome_conjuge', 'observacao'];
-    const extraCols = customFields.map((f) => f.chave);
-    const allCols = [...baseCols, ...extraCols, 'cadastrado_em'];
-
-    const lines: string[] = [];
-    lines.push(`-- Exportado do formulário de cadastro de membresia 2IBA em ${todayStamp()}`);
-    lines.push('CREATE TABLE IF NOT EXISTS membros_2iba_export (');
-    lines.push('  id SERIAL PRIMARY KEY,');
-    lines.push(
-      [...baseCols, ...extraCols].map((c) => `  ${c} TEXT`).join(',\n') + ','
+  // Gerenciador de Seleção Individual
+  const toggleSelecionar = (id: string) => {
+    setSelecionados((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
-    lines.push('  cadastrado_em TIMESTAMP');
-    lines.push(');');
-    lines.push('');
+  };
 
-    filtered.forEach((m) => {
-      const values: any[] = [
-        m.nome, m.sexo, m.data_nascimento, m.estado_civil, m.cpf, m.celular, m.email,
-        m.cep, m.endereco, m.numero, m.complemento, m.bairro, m.cidade, m.uf,
-        m.nome_conjuge, m.observacao,
-      ];
-      extraCols.forEach((k) => values.push(m.campos_extra ? m.campos_extra[k] : ''));
-      values.push(m.created_at);
-      lines.push(`INSERT INTO membros_2iba_export (${allCols.join(', ')}) VALUES (${values.map(sqlEsc).join(', ')});`);
-    });
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `cadastro_membresia_2iba_${todayStamp()}.sql`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  async function handleExportPdf() {
-    if (filtered.length === 0) return alert('Não há cadastros para exportar.');
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const margin = 34;
-    const navy: [number, number, number] = [0, 17, 120];
-    const gold: [number, number, number] = [232, 187, 0];
-    const cols: { key: keyof Membro; label: string; w: number }[] = [
-      { key: 'nome', label: 'Nome', w: 150 },
-      { key: 'sexo', label: 'Sexo', w: 60 },
-      { key: 'data_nascimento', label: 'Nascimento', w: 70 },
-      { key: 'celular', label: 'Celular', w: 85 },
-      { key: 'email', label: 'E-mail', w: 140 },
-      { key: 'cidade', label: 'Cidade', w: 80 },
-      { key: 'uf', label: 'UF', w: 30 },
-      { key: 'estado_civil', label: 'Estado civil', w: 80 },
-    ];
-
-    function drawHeader() {
-      doc.setFillColor(...navy);
-      doc.rect(0, 0, pageW, 50, 'F');
-      doc.setDrawColor(...gold);
-      doc.setLineWidth(2.5);
-      doc.line(0, 50, pageW, 50);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.text('2ª Igreja Batista de Areias — Cadastro de Membresia', margin, 30);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Exportado em ${new Date().toLocaleDateString('pt-BR')} · ${filtered.length} cadastro(s)`, margin, 44);
+  // Gerenciador de Seleção Global (Selecionar Todos os filtrados da tela)
+  const toggleSelecionarTodos = () => {
+    if (selecionados.length === filtrados.length) {
+      setSelecionados([]);
+    } else {
+      setSelecionados(filtrados.map((m) => m.id));
     }
+  };
 
-    function drawTableHead(y: number) {
-      doc.setFillColor(...navy);
-      doc.rect(margin, y, pageW - margin * 2, 20, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
-      let x = margin + 4;
-      cols.forEach((c) => {
-        doc.text(c.label, x, y + 13);
-        x += c.w;
-      });
-      return y + 20;
+  // Executa a Query de Deleção em Lote diretamente no Supabase
+  const handleExcluirSelecionados = async () => {
+    if (selecionados.length === 0) return;
+    
+    const confirmacao = window.confirm(
+      `Tem certeza absoluta que deseja excluir permanentemente estes ${selecionados.length} cadastro(s) do banco de dados?`
+    );
+    if (!confirmacao) return;
+
+    setLoadingExclusao(true);
+    const supabase = createClient();
+
+    // Query direta em lote: DELETE FROM membros WHERE id IN (...selecionados)
+    const { error } = await supabase
+      .from('membros')
+      .delete()
+      .in('id', selecionados);
+
+    setLoadingExclusao(false);
+
+    if (error) {
+      alert(`Erro ao excluir: ${error.message}`);
+    } else {
+      setSelecionados([]); // Limpa a seleção
+      router.refresh();   // Atualiza o Server Component para trazer a tabela atualizada
     }
-
-    let y = 70;
-    drawHeader();
-    y = drawTableHead(y);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(30, 30, 35);
-
-    filtered.forEach((m, idx) => {
-      if (y > pageH - 40) {
-        doc.addPage();
-        drawHeader();
-        y = drawTableHead(70);
-      }
-      if (idx % 2 === 0) {
-        doc.setFillColor(247, 247, 250);
-        doc.rect(margin, y, pageW - margin * 2, 18, 'F');
-      }
-      let x = margin + 4;
-      cols.forEach((c) => {
-        let val = String((m as any)[c.key] || '—');
-        if (val.length > 30) val = val.slice(0, 28) + '…';
-        doc.text(val, x, y + 12);
-        x += c.w;
-      });
-      y += 18;
-    });
-
-    doc.save(`cadastro_membresia_2iba_${todayStamp()}.pdf`);
-  }
+  };
 
   return (
-    <div className="max-w-[1180px] mx-auto px-5 pt-8 pb-16">
-      <div className="flex justify-between items-end flex-wrap gap-3 mb-6">
+    <div className="space-y-6 font-sans">
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-navy text-2xl m-0 mb-1">Painel de cadastros</h2>
-          <div className="text-xs text-gray-500">{membros.length} cadastro(s) recebido(s)</div>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Painel de cadastros</h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">{total} cadastro(s) recebido(s)</p>
         </div>
-        <button onClick={handleRefresh} className="border border-navy text-navy text-xs font-bold px-4 py-2 rounded">
-          Atualizar
-        </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-6">
-        <Stat n={stats.total} l="Total de cadastros" />
-        <Stat n={stats.masc} l="Masculino" />
-        <Stat n={stats.fem} l="Feminino" />
-        <Stat n={stats.semEmail} l="Sem e-mail" />
+      {/* Grid de Estatísticas */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        {[
+          { label: 'Total de Cadastros', val: total },
+          { label: 'Masculino', val: masculino },
+          { label: 'Feminino', val: feminino },
+          { label: 'Sem E-mail', val: semEmail },
+        ].map((card, i) => (
+          <div key={i} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm transition-all duration-300">
+            <span className="text-3xl font-bold text-neutral-900 dark:text-white">{card.val}</span>
+            <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mt-1">{card.label}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="flex justify-between flex-wrap gap-3 mb-4">
-        <div className="flex gap-2.5 flex-wrap">
+      {/* AÇÕES DE EXCLUSÃO FLUTUANTE (Aparece apenas se houver itens marcados) */}
+      {selecionados.length > 0 && (
+        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 p-4 rounded-xl flex items-center justify-between animate-fadeIn text-sm">
+          <span className="text-red-800 dark:text-red-400 font-semibold">
+            ⚡ {selecionados.length} cadastro(s) selecionado(s) para gerenciamento.
+          </span>
+          <button
+            onClick={handleExcluirSelecionados}
+            disabled={loadingExclusao}
+            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-lg shadow transition-all duration-300 transform active:scale-95 disabled:opacity-50"
+          >
+            {loadingExclusao ? 'Excluindo…' : 'Excluir Selecionados do Banco'}
+          </button>
+        </div>
+      )}
+
+      {/* Barra de Filtros */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-neutral-900 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 transition-all duration-300">
+        <div className="flex flex-wrap items-center gap-3">
           <input
             type="text"
-            placeholder="Pesquisar por nome…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-navy/15 rounded px-3 py-2 text-sm"
+            placeholder="Pesquisar por nome..."
+            className="bg-neutral-50 dark:bg-neutral-800 text-black dark:text-white border border-neutral-200 dark:border-neutral-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-iba-blue transition-all duration-300"
           />
           <select
             value={genderFilter}
             onChange={(e) => setGenderFilter(e.target.value)}
-            className="border border-navy/15 rounded px-3 py-2 text-sm"
+            className="bg-neutral-50 dark:bg-neutral-800 text-black dark:text-white border border-neutral-200 dark:border-neutral-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-iba-blue transition-all duration-300"
           >
             <option value="">Todos os sexos</option>
             <option value="Masculino">Masculino</option>
             <option value="Feminino">Feminino</option>
           </select>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={handleExportXlsx} className="bg-gold text-navy-ink text-xs font-bold px-4 py-2 rounded">
-            Baixar XLSX (Eklesia)
-          </button>
-          <button onClick={handleExportPdf} className="border border-navy text-navy text-xs font-bold px-4 py-2 rounded">
-            Baixar PDF
-          </button>
-          <button onClick={handleExportSql} className="border border-navy text-navy text-xs font-bold px-4 py-2 rounded">
-            Baixar SQL
-          </button>
+
+        <div className="flex items-center gap-2">
+          <button className="text-xs font-bold text-iba-blue dark:text-neutral-300 hover:underline px-3 py-2">Baixar XLSX (Eklesia)</button>
+          <button className="text-xs font-bold border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800 px-4 py-2 rounded-lg transition-all duration-300">Baixar PDF</button>
+          <button className="text-xs font-bold border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800 px-4 py-2 rounded-lg transition-all duration-300">Baixar SQL</button>
         </div>
       </div>
 
-      <div className="border border-navy/15 rounded overflow-auto max-h-[560px]">
-        <table className="w-full border-collapse bg-white">
-          <thead>
-            <tr>
-              {['Nome', 'Sexo', 'Celular', 'Cidade/UF', 'Cadastrado em', ''].map((h) => (
-                <th key={h} className="bg-navy text-cream text-left text-[11px] uppercase tracking-wide px-3 py-2.5">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center text-gray-500 py-9">
-                  Nenhum cadastro encontrado.
-                </td>
-              </tr>
-            )}
-            {filtered.map((m) => (
-              <tr key={m.id} className="hover:bg-navy-soft">
-                <td className="px-3 py-2.5 text-sm border-b border-navy/10">{m.nome || '—'}</td>
-                <td className="px-3 py-2.5 text-sm border-b border-navy/10">
-                  {m.sexo ? <span className="bg-navy-soft text-navy text-[11px] px-2 py-0.5 rounded-full">{m.sexo}</span> : '—'}
-                </td>
-                <td className="px-3 py-2.5 text-sm border-b border-navy/10">{m.celular || '—'}</td>
-                <td className="px-3 py-2.5 text-sm border-b border-navy/10">
-                  {[m.cidade, m.uf].filter(Boolean).join(' / ') || '—'}
-                </td>
-                <td className="px-3 py-2.5 text-sm border-b border-navy/10">
-                  {new Date(m.created_at).toLocaleDateString('pt-BR')}
-                </td>
-                <td className="px-3 py-2.5 text-sm border-b border-navy/10">
-                  <button onClick={() => handleDelete(m)} className="text-red-600 border border-red-600 text-xs font-bold px-2.5 py-1 rounded">
-                    Excluir
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Tabela Interativa */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm transition-all duration-300">
+        {filtrados.length === 0 ? (
+          <div className="p-8 text-center text-neutral-500 dark:text-neutral-400">
+            Nenhum cadastro encontrado.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 text-neutral-700 dark:text-neutral-300 text-xs font-bold uppercase tracking-wider">
+                  <th className="p-4 w-12 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filtrados.length > 0 && selecionados.length === filtrados.length}
+                      onChange={toggleSelecionarTodos}
+                      className="w-4 h-4 rounded text-iba-blue border-neutral-300 focus:ring-iba-blue cursor-pointer"
+                    />
+                  </th>
+                  <th className="p-4">Nome</th>
+                  <th className="p-4">Gênero</th>
+                  <th className="p-4">Celular</th>
+                  <th className="p-4">Cidade/UF</th>
+                  <th className="p-4">Cadastrado em</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 text-sm text-neutral-900 dark:text-neutral-100">
+                {filtrados.map((membro) => {
+                  const estaSelecionado = selecionados.includes(membro.id);
+                  return (
+                    <tr 
+                      key={membro.id} 
+                      className={`transition-colors ${
+                        estaSelecionado 
+                          ? 'bg-iba-blue/5 dark:bg-iba-blue/10' 
+                          : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/40'
+                      }`}
+                    >
+                      <td className="p-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={estaSelecionado}
+                          onChange={() => toggleSelecionar(membro.id)}
+                          className="w-4 h-4 rounded text-iba-blue border-neutral-300 focus:ring-iba-blue cursor-pointer"
+                        />
+                      </td>
+                      <td className="p-4 font-medium">{membro.nome}</td>
+                      <td className="p-4">{membro.genero || '-'}</td>
+                      <td className="p-4">{membro.celular || '-'}</td>
+                      <td className="p-4">{membro.cidade ? `${membro.cidade}/${membro.uf}` : '-'}</td>
+                      <td className="p-4 text-xs text-neutral-500">
+                        {membro.created_at ? new Date(membro.created_at).toLocaleDateString('pt-BR') : '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-function Stat({ n, l }: { n: number; l: string }) {
-  return (
-    <div className="bg-white border border-navy/15 border-l-4 border-l-gold rounded px-4 py-3.5">
-      <div className="text-2xl text-navy font-bold">{n}</div>
-      <div className="text-[11px] uppercase tracking-wide text-gray-500">{l}</div>
     </div>
   );
 }

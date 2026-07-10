@@ -2,12 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background: #FAF9F6;
-  color: #1b1b1f;
-  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+@layer base {
+  body {
+    @apply transition-colors duration-300 ease-in-out;
+  }
+  
+  /* Remove estilos antigos e força fontes limpas em elementos de entrada */
+  input, select, textarea, button {
+    font-family: 'Inter', 'Verdana', sans-serif !important;
+  }
 }
 
-input, select, textarea, button {
-  font-family: Arial, Helvetica, sans-serif;
+/* Animações suaves criadas para os cards e interações */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out forwards;
 }
