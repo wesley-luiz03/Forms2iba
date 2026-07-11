@@ -29,8 +29,8 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   // Estado para capturar erros em tempo real por campo (onBlur)
   const [errorsByField, setErrorsByField] = useState<{ [key: string]: string }>({});
 
-  // Controle de Janela Flutuante para a LGPD
-  const [showLgpdModal, setShowLgpdModal] = useState(false);
+  // Novo estado para o Checkbox de aceite rápido da LGPD (Item 4)
+  const [aceitaTermosLgpd, setAceitaTermosLgpd] = useState(false);
 
   // Estados dos campos do formulário - Dados Pessoais
   const [nome, setNome] = useState('');
@@ -104,9 +104,11 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       .catch(() => setCarregandoCidades(false));
   }, [estadoNatural]);
 
-  // Auto-complete de Endereço via ViaCEP
+  // Auto-complete de Endereço via ViaCEP Otimizado
   useEffect(() => {
     const cleanCep = cep.replace(/\D/g, '');
+    
+    // Só dispara a requisição se o CEP tiver exatamente os 8 dígitos preenchidos[cite: 3]
     if (cleanCep.length === 8) {
       fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
         .then((res) => res.json())
@@ -144,7 +146,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     setFilhos(novosFilhos);
   };
 
-  // --- FUNÇÕES DE MÁSCARA INTELIGENTE ---
+  // --- FUNÇÕES DE MÁSCARA INTELIGENTE OTIMIZADAS ---
   const aplicarMascaraData = (value: string) => {
     let clean = value.replace(/\D/g, '');
     if (clean.length > 8) clean = clean.slice(0, 8);
@@ -177,8 +179,16 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   const handleCelularChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 11) value = value.slice(0, 11);
-    value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
-    value = value.replace(/(\d{5})(\d)/, '$1-$2');
+    
+    if (value.length > 10) {
+      value = value.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+    } else if (value.length > 6) {
+      value = value.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+    } else if (value.length > 2) {
+      value = value.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+    } else if (value.length > 0) {
+      value = value.replace(/^(\d{0,2})$/, '($1');
+    }
     setCellular(value);
   };
 
@@ -214,7 +224,6 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     return true;
   };
 
-  // --- VALIDATOR INTELLIGENCE ONBLUR (Aparece ao sair do campo) ---
   const handleBlurValidation = (campo: string, valor: string) => {
     let erroMensagem = '';
 
@@ -234,6 +243,12 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     if (campo === 'cep') {
       if (valor && valor.replace(/\D/g, '').length !== 8) {
         erroMensagem = 'O CEP deve conter exatamente 8 dígitos (00000-000).';
+      }
+    }
+
+    if (campo === 'celular') {
+      if (valor && valor.replace(/\D/g, '').length < 11) {
+        erroMensagem = 'O celular deve conter o DDD + 9 dígitos.';
       }
     }
 
@@ -258,7 +273,12 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     e.preventDefault();
     setError(null);
 
-    // Filtra o objeto para ignorar chaves que possuam chaves vazias ou limpas
+    // Validação estrita do Checkbox da LGPD antes de submeter[cite: 3]
+    if (!aceitaTermosLgpd) {
+      setError('Você precisa marcar a caixinha de consentimento da LGPD no final do formulário.');
+      return;
+    }
+
     const errosAtivos = Object.keys(errorsByField).filter(key => errorsByField[key] !== '');
 
     if (errosAtivos.length > 0) {
@@ -267,16 +287,17 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       return;
     }
 
-    if (!validarCPF(cpf) || cep.replace(/\D/g, '').length !== 8 || dataNascimento.length !== 10) {
+    if (!validarCPF(cpf) || cep.replace(/\D/g, '').length !== 8 || dataNascimento.length !== 10 || celular.replace(/\D/g, '').length < 11) {
       setError('Existem campos obrigatórios vazios ou em formatos incorretos.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    setShowLgpdModal(true);
+    // Dispara direto o envio para o Supabase[cite: 3]
+    ejecutarEnvioSupabase();
   }
 
-  async function executarEnvioSupabase() {
+  async function ejecutarEnvioSupabase() {
     setLoading(true);
     const supabase = createClient();
     const naturalidadeCompleta = `${cidadeNatural} - ${estadoNatural}`;
@@ -306,22 +327,19 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       return;
     }
 
-    // DISPARO DO WEBHOOK EM SEGUNDO PLANO (Não intercepta e nem trava o fluxo)
-    const WEBHOOK_AUTOMACAO_WHATSAPP = 'https://seu-servidor-webhook.com/2iba-notificacao';
-    if (WEBHOOK_AUTOMACAO_WHATSAPP && !WEBHOOK_AUTOMACAO_WHATSAPP.includes('seu-servidor-webhook')) {
-      fetch(WEBHOOK_AUTOMACAO_WHATSAPP, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          evento: 'novo_membro_cadastrado',
-          nome: payloadMembro.nome,
-          celular: payloadMembro.celular,
-          email: payloadMembro.email,
-          bairro: payloadMembro.bairro,
-          data_cadastro: new Date().toLocaleString('pt-BR')
-        })
-      }).catch((e) => console.warn('Erro em background no envio do Webhook:', e));
-    }
+    const WEBHOOK_AUTOMACAO_LOCAL = '/api/notificar';
+    fetch(WEBHOOK_AUTOMACAO_LOCAL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        evento: 'novo_membro_cadastrado',
+        nome: payloadMembro.nome,
+        celular: payloadMembro.celular,
+        email: payloadMembro.email,
+        bairro: payloadMembro.bairro,
+        data_cadastro: new Date().toLocaleString('pt-BR')
+      })
+    }).catch((e) => console.warn('Erro em background no envio da notificação:', e));
 
     setLoading(false);
     router.push('/sucesso');
@@ -496,9 +514,17 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               <input type="text" required value={rg} onChange={(e) => setRg(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none" />
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 relative">
               <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Celular <span className="text-red-600">*</span></label>
-              <input type="text" required value={celular} onChange={handleCelularChange} placeholder="(81) 99999-9999" className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none" />
+              <input 
+                type="text" required value={celular} onChange={handleCelularChange} 
+                onBlur={(e) => handleBlurValidation('celular', e.target.value)}
+                placeholder="(81) 99999-9999" 
+                className={`border bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none transition-colors ${errorsByField.celular ? 'border-red-500 focus:border-red-500' : 'border-neutral-300 dark:border-neutral-700 focus:border-iba-blue'}`} 
+              />
+              {errorsByField.celular && (
+                <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 mt-1 animate-fadeIn">⚠️ {errorsByField.celular}</span>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5 relative">
@@ -564,7 +590,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
         </div>
 
         {/* SEÇÃO 4: ADICIONAIS */}
-        <div className="p-7">
+        <div className="p-7 border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex items-baseline gap-3 mb-4">
             <span className="w-6 h-6 rounded-full bg-iba-dark text-iba-goldLight text-xs font-bold flex items-center justify-center flex-none">4</span>
             <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Ficha Eclesiástica e Adicionais</h3>
@@ -665,9 +691,56 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           </div>
         </div>
 
-        <div className="p-7 bg-neutral-50 dark:bg-neutral-800/50 border-t border-neutral-100 dark:border-neutral-800 flex justify-end">
-          <button type="submit" disabled={loading} className="bg-iba-blue hover:bg-iba-dark text-white font-bold text-sm px-8 py-4 rounded-lg shadow-md transition-all duration-300 transform active:scale-95 disabled:opacity-50">
-            {loading ? 'Validando…' : 'Finalizar e Enviar Cadastro'}
+        {/* SEÇÃO INTEGRADA DO TERMO COMPLETO DA LGPD */}
+        <div className="p-7 bg-neutral-50 dark:bg-neutral-800/20 border-b border-neutral-100 dark:border-neutral-800 space-y-4">
+          <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-tight pb-1 border-b border-neutral-200 dark:border-neutral-700">
+            Termo de Autorização e Consentimento (LGPD)
+          </h4>
+          
+          <div className="max-h-[160px] overflow-y-auto text-xs text-neutral-600 dark:text-neutral-400 space-y-3 pr-2 leading-relaxed bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 rounded-lg">
+            <p>
+              Em conformidade com a <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018)</strong>, ao confirmar este cadastro, você autoriza expressamente que a <strong>2ª Igreja Batista de Areias</strong> realize o tratamento de seus dados pessoais para fins exclusivos de gestão eclesiástica, registros de membresia, relatórios estatísticos internos e comunicações oficiais de atividades pastorais.
+            </p>
+            <p>
+              <strong>Uso de Imagem e Voz:</strong> Você declara estar ciente e autoriza o uso eventual de sua imagem e voz em registros fotográficos ou audiovisuais realizados durante as celebrações públicas e eventos promovidos pela igreja, destinados à divulgação institucional em mídias sociais ou canais de transmissão oficiais, sem fins lucrativos.
+            </p>
+            <p>
+              A igreja compromete-se a zelar pela segurança das informações, não compartilhando dados pessoais com terceiros para fins comerciais. Você poderá solicitar a atualização ou revogação deste consentimento a qualquer momento junto à secretaria da igreja.
+            </p>
+          </div>
+
+          <div className="flex items-start gap-3 pt-2">
+            <input
+              type="checkbox"
+              id="aceitaTermosLgpd"
+              checked={aceitaTermosLgpd}
+              onChange={(e) => setAceitaTermosLgpd(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-neutral-300 text-iba-blue focus:ring-iba-blue cursor-pointer"
+            />
+            <label htmlFor="aceitaTermosLgpd" className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed select-none cursor-pointer">
+              Li o termo acima e <b>autorizo expressamente</b> a 2ª Igreja Batista de Areias a tratar os meus dados em total conformidade com a LGPD.
+            </label>
+          </div>
+        </div>
+
+        {/* SEÇÃO DO BOTÃO DE SUBMISSÃO */}
+        <div className="p-7 bg-neutral-50 dark:bg-neutral-800/50 flex justify-end">
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className="bg-iba-blue hover:bg-iba-dark text-white font-bold text-sm px-8 py-4 rounded-lg shadow-md transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Enviando Cadastro...
+              </span>
+            ) : (
+              'Finalizar e Enviar Cadastro'
+            )}
           </button>
         </div>
       </form>
@@ -694,50 +767,6 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           Chamar no Suporte
         </a>
       </div>
-
-      {/* MODAL WINDOW DE CONSENTIMENTO DA LGPD */}
-      {showLgpdModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans animate-fadeIn">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl max-w-xl w-full p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh]">
-            <h4 className="text-base font-bold text-neutral-900 dark:text-white uppercase tracking-tight border-b border-neutral-100 dark:border-neutral-800 pb-2">
-              Termo de Autorização e Consentimento (LGPD)
-            </h4>
-            
-            <div className="overflow-y-auto text-xs text-neutral-600 dark:text-neutral-400 space-y-3 pr-2 leading-relaxed">
-              <p>
-                Em conformidade com a <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018)</strong>, ao confirmar este cadastro, você autoriza expressamente que a <strong>2ª Igreja Batista de Areias</strong> realize o tratamento de seus dados pessoais para fins exclusivos de gestão eclesiástica, registros de membresia, relatórios estatísticos internos e comunicações oficiais de atividades pastorais.
-              </p>
-              <p>
-                <strong>Uso de Imagem e Voz:</strong> Você declara estar ciente e autoriza o uso eventual de sua imagem e voz em registros fotográficos ou audiovisuais realizados durante as celebrações públicas e eventos promovidos pela igreja, destinados à divulgação institucional em mídias sociais ou canais de transmissão oficiais, sem fins lucrativos.
-              </p>
-              <p>
-                A igreja compromete-se a zelar pela segurança das informações, não compartilhando dados pessoais com terceiros para fins comerciais. Você poderá solicitar a atualização ou revogação deste consentimento a qualquer momento junto à secretaria da igreja.
-              </p>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-neutral-100 dark:border-neutral-800">
-              <button 
-                type="button" 
-                onClick={() => setShowLgpdModal(false)} 
-                className="px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 text-xs font-bold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all duration-200"
-              >
-                Recusar e Voltar
-              </button>
-              <button 
-                type="button" 
-                disabled={loading}
-                onClick={() => {
-                  setShowLgpdModal(false);
-                  executarEnvioSupabase();
-                }} 
-                className="px-5 py-2 rounded-lg bg-iba-blue hover:bg-iba-dark text-white text-xs font-bold shadow-md transition-all duration-200 disabled:opacity-50"
-              >
-                {loading ? 'Processando…' : 'Aceitar e Finalizar Cadastro'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
