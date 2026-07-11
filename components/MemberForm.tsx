@@ -276,7 +276,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     setShowLgpdModal(true);
   }
 
-async function executarEnvioSupabase() {
+  async function executarEnvioSupabase() {
     setLoading(true);
     const supabase = createClient();
     const naturalidadeCompleta = `${cidadeNatural} - ${estadoNatural}`;
@@ -285,34 +285,15 @@ async function executarEnvioSupabase() {
     const uniaoISO = estadoCivil === 'Casado(a)' ? formatarParaISO(dataUniao) : null;
     const batismoISO = batismoNaoRecordo ? 'NÃO ME RECORDO' : dataBatismo;
 
-    // Criamos o payload contendo estritamente as colunas reais da sua tabela membros
     const payloadMembro = {
-      nome, 
-      genero, 
-      data_nascimento: nascimentoISO, 
-      estado_civil: estadoCivil, 
-      cpf, 
-      celular, 
-      email, 
-      cep, 
-      endereco, 
-      numero,
-      complemento, 
-      bairro, 
-      cidade, 
-      uf, 
-      rg, 
-      escolaridade, 
-      tipo_sanguineo: tipoSanguineo || null,
-      eh_doador: isDoador || null, 
-      naturalidade: naturalidadeCompleta,
-      nome_pai: paiNaoConsta ? 'NÃO CONSTA' : nomePai, 
-      nome_mae: nomeMae, 
-      data_batismo: batismoISO,
+      nome, genero, data_nascimento: nascimentoISO, text_content: null,
+      estado_civil: estadoCivil, cpf, celular, email, cep, endereco, numero,
+      complemento, bairro, cidade, uf, rg, escolaridade, tipo_sanguineo: tipoSanguineo || null,
+      eh_doador: isDoador || null, naturalidade: naturalidadeCompleta,
+      nome_pai: paiNaoConsta ? 'NÃO CONSTA' : nomePai, nome_mae: nomeMae, data_batismo: batismoISO,
       dados_familiares: {
         nomeConjuge: estadoCivil === 'Casado(a)' ? nomeConjuge : null,
-        dataUniao: uniaoISO, 
-        filhos: haFilhos === 'Sim' ? filhos : []
+        dataUniao: uniaoISO, filhos: haFilhos === 'Sim' ? filhos : []
       }
     };
 
@@ -325,24 +306,23 @@ async function executarEnvioSupabase() {
       return;
     }
 
-setLoading(false);
+    // DISPARO DO WEBHOOK EM SEGUNDO PLANO (Não intercepta e nem trava o fluxo)
+    const WEBHOOK_AUTOMACAO_WHATSAPP = 'https://seu-servidor-webhook.com/2iba-notificacao';
+    if (WEBHOOK_AUTOMACAO_WHATSAPP && !WEBHOOK_AUTOMACAO_WHATSAPP.includes('seu-servidor-webhook')) {
+      fetch(WEBHOOK_AUTOMACAO_WHATSAPP, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          evento: 'novo_membro_cadastrado',
+          nome: payloadMembro.nome,
+          celular: payloadMembro.celular,
+          email: payloadMembro.email,
+          bairro: payloadMembro.bairro,
+          data_cadastro: new Date().toLocaleString('pt-BR')
+        })
+      }).catch((e) => console.warn('Erro em background no envio do Webhook:', e));
+    }
 
-    // DISPARO SEGURO ATRAVÉS DA SUA API ROUTE INTERNA
-    fetch('/api/notificar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        evento: 'novo_membro_cadastrado',
-        nome: payloadMembro.nome,
-        celular: payloadMembro.celular,
-        email: payloadMembro.email,
-        bairro: payloadMembro.bairro,
-        data_cadastro: new Date().toLocaleString('pt-BR')
-      })
-    }).catch((e) => console.warn('Notificação enviada para a fila de background.'));
-
-    // Redireciona o usuário imediatamente para a tela de sucesso
-    router.push('/sucesso');
     setLoading(false);
     router.push('/sucesso');
   }
