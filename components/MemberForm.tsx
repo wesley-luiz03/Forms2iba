@@ -61,7 +61,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
 
   // Estrutura Dinâmica Infinita para Múltiplos Filhos
   const [filhos, setFilhos] = useState<Filho[]>([
-    { nome: '', dataNascimento: '', genero: '', telephone: '', email: '' }
+    { nome: '', dataNascimento: '', genero: '', telefone: '', email: '' }
   ]);
 
   // Ficha Eclesiástica e Adicionais
