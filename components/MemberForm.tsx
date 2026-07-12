@@ -29,7 +29,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   // Estado para capturar erros em tempo real por campo (onBlur)
   const [errorsByField, setErrorsByField] = useState<{ [key: string]: string }>({});
 
-  // Novo estado para o Checkbox de aceite rápido da LGPD (Item 4)
+  // Novo estado para o Checkbox de aceite rápido da LGPD
   const [aceitaTermosLgpd, setAceitaTermosLgpd] = useState(false);
 
   // Estados dos campos do formulário - Dados Pessoais
@@ -108,7 +108,6 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   useEffect(() => {
     const cleanCep = cep.replace(/\D/g, '');
     
-    // Só dispara a requisição se o CEP tiver exatamente os 8 dígitos preenchidos[cite: 3]
     if (cleanCep.length === 8) {
       fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
         .then((res) => res.json())
@@ -224,7 +223,8 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     return true;
   };
 
-  const handleBlurValidation = (campo: string, valor: string) => {
+  // --- VALIDATOR INTELLIGENCE ONBLUR ---
+  const handleBlurValidation = async (campo: string, valor: string) => {
     let erroMensagem = '';
 
     if (campo === 'email') {
@@ -235,8 +235,24 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     }
 
     if (campo === 'cpf') {
-      if (valor && !validarCPF(valor)) {
-        erroMensagem = 'CPF inválido. Verifique os dígitos verificadores.';
+      if (valor) {
+        if (!validarCPF(valor)) {
+          erroMensagem = 'CPF inválido. Verifique os dígitos verificadores.';
+        } else {
+          // 🛑 NOVA VALIDAÇÃO: Checa se o CPF já existe no Supabase em tempo real
+          const supabase = createClient();
+          const { data, error: fetchError } = await supabase
+            .from('membros')
+            .select('id')
+            .eq('cpf', valor)
+            .maybeSingle();
+
+          if (fetchError) {
+            console.error('Erro ao checar CPF duplicado:', fetchError);
+          } else if (data) {
+            erroMensagem = 'Este CPF já possui uma atualização cadastral realizada no sistema.';
+          }
+        }
       }
     }
 
@@ -273,7 +289,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     e.preventDefault();
     setError(null);
 
-    // Validação estrita do Checkbox da LGPD antes de submeter[cite: 3]
+    // Validação estrita do Checkbox da LGPD antes de submeter
     if (!aceitaTermosLgpd) {
       setError('Você precisa marcar a caixinha de consentimento da LGPD no final do formulário.');
       return;
@@ -282,7 +298,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     const errosAtivos = Object.keys(errorsByField).filter(key => errorsByField[key] !== '');
 
     if (errosAtivos.length > 0) {
-      setError('Por favor, corrija os erros apontados nos campos antes de enviar.');
+      setError(errorsByField.cpf || 'Por favor, corrija os erros apontados nos campos antes de enviar.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -293,7 +309,6 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       return;
     }
 
-    // Dispara direto o envio para o Supabase[cite: 3]
     ejecutarEnvioSupabase();
   }
 
@@ -322,7 +337,12 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
 
     if (insertError) {
       setLoading(false);
-      setError(`Erro ao gravar dados no banco de dados: ${insertError.message}`);
+      // Caso a restrição do banco barre por concorrência
+      if (insertError.code === '23505') {
+        setError('Este CPF já foi cadastrado por outro acesso simultâneo.');
+      } else {
+        setError(`Erro ao gravar dados no banco de dados: ${insertError.message}`);
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -702,7 +722,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               Em conformidade com a <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018)</strong>, ao confirmar este cadastro, você autoriza expressamente que a <strong>2ª Igreja Batista de Areias</strong> realize o tratamento de seus dados pessoais para fins exclusivos de gestão eclesiástica, registros de membresia, relatórios estatísticos internos e comunicações oficiais de atividades pastorais.
             </p>
             <p>
-              <strong>Uso de Imagem e Voz:</strong> Você declara estar ciente e autoriza o uso eventual de sua imagem e voz em registros fotográficos ou audiovisuais realizados durante as celebrações públicas e eventos promovidos pela igreja, destinados à divulgação institucional em mídias sociais ou canais de transmissão oficiais, sem fins lucrativos.
+              <strong>Uso de Imagem e Voz:</strong> Você declara estar ciente e autoriza o uso eventual de sua imagem e voice em registros fotográficos ou audiovisuais realizados durante as celebrações públicas e eventos promovidos pela igreja, destinados à divulgação institucional em mídias sociais ou canais de transmissão oficiais, sem fins lucrativos.
             </p>
             <p>
               A igreja compromete-se a zelar pela segurança das informações, não compartilhando dados pessoais com terceiros para fins comerciais. Você poderá solicitar a atualização ou revogação deste consentimento a qualquer momento junto à secretaria da igreja.
@@ -727,7 +747,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
         <div className="p-7 bg-neutral-50 dark:bg-neutral-800/50 flex justify-end">
           <button 
             type="submit" 
-            disabled={loading} 
+            disabled={loading || Object.keys(errorsByField).length > 0} 
             className="bg-iba-blue hover:bg-iba-dark text-white font-bold text-sm px-8 py-4 rounded-lg shadow-md transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             {loading ? (
@@ -770,3 +790,5 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     </div>
   );
 }
+
+///
