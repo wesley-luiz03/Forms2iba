@@ -23,15 +23,15 @@ interface CidadeIBGE {
 
 // Lista de ministérios organizada em ordem alfabética
 const MINISTERIOS = [
-  "Ministério de ação social",
-  "Ministério de comunicação",
-  "Ministério de evangelismo e missões",
-  "Ministério de Intercessão",
-  "Ministério de Louvor",
-  "Ministério da 3ª idade",
-  "Ministério da família",
-  "Ministério da juventude",
-  "Ministério infantil",
+  "Ministério da 3ª Idade",
+  "Ministério de Ação Social",
+  "Ministério de Comunicação",
+  "Ministério de Evangelismo e Missões",
+  "Ministério de Família",
+  "Ministério Infantil",
+  "Ministério da Intercessão",
+  "Ministério da Juventude",
+  "Ministério de Música",
   "Ministério Mãos de Deus"
 ];
 
