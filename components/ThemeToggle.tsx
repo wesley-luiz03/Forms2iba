@@ -6,14 +6,17 @@ export default function ThemeToggle() {
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    // Verifica se o usuário já tinha escolhido o dark mode antes
+    // Verifica se já existe uma preferência salva pelo usuário
     const theme = localStorage.getItem('theme');
-    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    
+    // Altera para que o padrão seja "claro" caso não exista preferência salva
+    if (theme === 'dark') {
       setDarkMode(true);
       document.documentElement.classList.add('dark');
     } else {
       setDarkMode(false);
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   }, []);
 
@@ -32,16 +35,20 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      type="button"
-      className="fixed bottom-6 right-6 z-50 bg-white dark:bg-iba-darkCard border border-iba-dark/10 dark:border-white/10 p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 text-xl flex items-center justify-center focus:outline-none group"
-      aria-label="Alternar modo de cores"
+      className="fixed bottom-6 right-6 p-3 bg-neutral-900 text-white dark:bg-white dark:text-black rounded-full shadow-lg hover:scale-110 transition-transform z-50 focus:outline-none"
+      aria-label="Alternar Tema"
     >
       {darkMode ? (
-        <span className="animate-pulse">☀️</span> // Ícone Sol no Dark Mode
+        // Ícone de Sol para voltar pro claro
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+        </svg>
       ) : (
-        <span className="animate-pulse">🌙</span> // Ícone Lua no Light Mode
-      )
-    }
+        // Ícone de Lua para ativar o escuro
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      )}
     </button>
   );
 }

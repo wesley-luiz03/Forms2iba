@@ -21,6 +21,20 @@ interface CidadeIBGE {
   nome: string;
 }
 
+// Lista de ministérios organizada em ordem alfabética
+const MINISTERIOS = [
+  "Ministério de ação social",
+  "Ministério de comunicação",
+  "Ministério de evangelismo e missões",
+  "Ministério de Intercessão",
+  "Ministério de Louvor",
+  "Ministério da 3ª idade",
+  "Ministério da família",
+  "Ministério da juventude",
+  "Ministério infantil",
+  "Ministério Mãos de Deus"
+];
+
 export default function MemberForm({ customFields }: { customFields: any[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -38,6 +52,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   const [estadoCivil, setEstadoCivil] = useState('');
   const [cpf, setCpf] = useState('');
   const [rg, setRg] = useState('');
+  const [orgaoExpedidor, setOrgaoExpedidor] = useState(''); // Novo Campo
   const [celular, setCellular] = useState('');
   const [email, setEmail] = useState('');
 
@@ -54,6 +69,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
   const [uf, setUf] = useState('');
+  const [pontoReferencia, setPontoReferencia] = useState(''); // Novo Campo
 
   // Lógica de Cônjuge e Dependentes
   const [nomeConjuge, setNomeConjuge] = useState('');
@@ -72,6 +88,15 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   const [paiNaoConsta, setPaiNaoConsta] = useState(false);
   const [nomeMae, setNomeMae] = useState('');
   const [batismoNaoRecordo, setBatismoNaoRecordo] = useState(false);
+
+  // Perguntas de Ministérios (Novos Campos)
+  const [fazParteMinisterio, setFazParteMinisterio] = useState('');
+  const [qualMinisterioFazParte, setQualMinisterioFazParte] = useState('');
+  const [querParticiparMinisterio, setQuerParticiparMinisterio] = useState('');
+  const [qualMinisterioQuerParticipar, setQualMinisterioQuerParticipar] = useState('');
+
+  // Estados dos campos customizados gerados dinamicamente
+  const [respostasCustomizadas, setRespostasCustomizadas] = useState<{ [key: string]: any }>({});
 
   // Estados da API de Naturalidade do IBGE
   const [listaEstados, setListaEstados] = useState<EstadoIBGE[]>([]);
@@ -239,7 +264,6 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
         if (!validarCPF(valor)) {
           erroMensagem = 'CPF inválido. Verifique os dígitos verificadores.';
         } else {
-          // 🛑 NOVA VALIDAÇÃO: Checa se o CPF já existe no Supabase em tempo real
           const supabase = createClient();
           const { data, error: fetchError } = await supabase
             .from('membros')
@@ -295,6 +319,22 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       return;
     }
 
+    // VALIDAÇÃO EXCLUSIVA CASAMENTO OBRIGATÓRIO
+    if (estadoCivil === 'Casado(a)') {
+      if (!nomeConjuge.trim()) {
+        setError('Como você selecionou Estado Civil "Casado(a)", o nome do cônjuge é obrigatório.');
+        return;
+      }
+      if (!dataUniao || dataUniao.length !== 10) {
+        setError('Como você selecionou Estado Civil "Casado(a)", a data da união é obrigatória e deve estar no formato correto.');
+        return;
+      }
+      if (!haFilhos) {
+        setError('Como você selecionou Estado Civil "Casado(a)", você precisa responder se possui filhos.');
+        return;
+      }
+    }
+
     const errosAtivos = Object.keys(errorsByField).filter(key => errorsByField[key] !== '');
 
     if (errosAtivos.length > 0) {
@@ -303,7 +343,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       return;
     }
 
-    if (!validarCPF(cpf) || cep.replace(/\D/g, '').length !== 8 || dataNascimento.length !== 10 || celular.replace(/\D/g, '').length < 11) {
+    if (!validarCPF(cpf) || cep.replace(/\D/g, '').length !== 8 || dataNascimento.length !== 10 || celular.replace(/\D/g, '').length < 11 || !orgaoExpedidor.trim()) {
       setError('Existem campos obrigatórios vazios ou em formatos incorretos.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -321,23 +361,52 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     const uniaoISO = estadoCivil === 'Casado(a)' ? formatarParaISO(dataUniao) : null;
     const batismoISO = batismoNaoRecordo ? 'NÃO ME RECORDO' : dataBatismo;
 
+    // Lógica consolidada de todos os campos extras + dinâmicos no JSONB
+    const todosCamposExtra = {
+      ...respostasCustomizadas,
+      orgao_expedidor: orgaoExpedidor,
+      ponto_referencia: pontoReferencia || null,
+      faz_parte_ministerio: fazParteMinisterio,
+      qual_ministerio_faz_parte: fazParteMinisterio === 'Sim' ? qualMinisterioFazParte : null,
+      quer_participar_ministerio: fazParteMinisterio === 'Não' ? querParticiparMinisterio : null,
+      qual_ministerio_quer_participar: (fazParteMinisterio === 'Não' && querParticiparMinisterio === 'Sim') ? qualMinisterioQuerParticipar : null,
+    };
+
     const payloadMembro = {
-      nome, genero, data_nascimento: nascimentoISO, text_content: null,
-      estado_civil: estadoCivil, cpf, celular, email, cep, endereco, numero,
-      complemento, bairro, cidade, uf, rg, escolaridade, tipo_sanguineo: tipoSanguineo || null,
-      eh_doador: isDoador || null, naturalidade: naturalidadeCompleta,
-      nome_pai: paiNaoConsta ? 'NÃO CONSTA' : nomePai, nome_mae: nomeMae, data_batismo: batismoISO,
+      nome, 
+      genero, 
+      data_nascimento: nascimentoISO, 
+      estado_civil: estadoCivil, 
+      cpf, 
+      celular, 
+      email, 
+      cep, 
+      endereco, 
+      numero,
+      complemento, 
+      bairro, 
+      cidade, 
+      uf, 
+      rg, 
+      escolaridade, 
+      tipo_sanguineo: tipoSanguineo || null,
+      eh_doador: isDoador || null, 
+      naturalidade: naturalidadeCompleta,
+      nome_pai: paiNaoConsta ? 'NÃO CONSTA' : nomePai, 
+      nome_mae: nomeMae, 
+      data_batismo: batismoISO,
       dados_familiares: {
         nomeConjuge: estadoCivil === 'Casado(a)' ? nomeConjuge : null,
-        dataUniao: uniaoISO, filhos: haFilhos === 'Sim' ? filhos : []
-      }
+        dataUniao: uniaoISO, 
+        filhos: haFilhos === 'Sim' ? filhos : []
+      },
+      campos_extra: todosCamposExtra
     };
 
     const { error: insertError } = await supabase.from('membros').insert(payloadMembro);
 
     if (insertError) {
       setLoading(false);
-      // Caso a restrição do banco barre por concorrência
       if (insertError.code === '23505') {
         setError('Este CPF já foi cadastrado por outro acesso simultâneo.');
       } else {
@@ -365,6 +434,13 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     router.push('/sucesso');
   }
 
+  const handleCustomFieldChange = (chave: string, valor: any) => {
+    setRespostasCustomizadas(prev => ({
+      ...prev,
+      [chave]: valor
+    }));
+  };
+
   return (
     <div className="space-y-6">
       <form onSubmit={handleTriggerValidation} className="bg-white dark:bg-neutral-900 text-black dark:text-white border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl overflow-hidden font-sans transition-all duration-300">
@@ -383,7 +459,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="flex flex-col gap-1.5 relative">
+            <div className="flex flex-col gap-1.5 relative col-span-1 sm:col-span-2">
               <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Nome completo <span className="text-red-600">*</span></label>
               <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full" />
             </div>
@@ -422,20 +498,20 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
             </div>
           </div>
 
-          {/* COMPONENTE DINÂMICO DE CASAMENTO */}
+          {/* COMPONENTE DINÂMICO DE CASAMENTO (AGORA OBRIGATÓRIOS) */}
           {estadoCivil === 'Casado(a)' && (
             <div className="mt-5 p-5 bg-neutral-50 dark:bg-neutral-800/40 rounded-xl border border-neutral-200 dark:border-neutral-800 gap-5 grid grid-cols-1 sm:grid-cols-2 animate-fadeIn">
               <div className="flex flex-col gap-1.5 col-span-1 sm:col-span-2">
-                <h4 className="text-sm font-bold text-iba-blue uppercase tracking-wider">Informações do Cônjuge</h4>
+                <h4 className="text-sm font-bold text-iba-blue uppercase tracking-wider">Informações do Cônjuge (Obrigatório)</h4>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Nome do Cônjuge</label>
-                <input type="text" value={nomeConjuge} onChange={(e) => setNomeConjuge(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
+                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Nome do Cônjuge <span className="text-red-600">*</span></label>
+                <input type="text" required value={nomeConjuge} onChange={(e) => setNomeConjuge(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
               </div>
               <div className="flex flex-col gap-1.5 relative">
-                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Data da União</label>
+                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Data da União <span className="text-red-600">*</span></label>
                 <input 
-                  type="text" maxLength={10} placeholder="DD/MM/AAAA" value={dataUniao}
+                  type="text" required maxLength={10} placeholder="DD/MM/AAAA" value={dataUniao}
                   onChange={(e) => setDataUniao(aplicarMascaraData(e.target.value))}
                   onBlur={(e) => handleBlurValidation('dataUniao', e.target.value)}
                   className={`border bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm transition-colors ${errorsByField.dataUniao ? 'border-red-500' : 'border-neutral-300 dark:border-neutral-700'}`}
@@ -445,8 +521,8 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                 )}
               </div>
               <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Há Filhos?</label>
-                <select value={haFilhos} onChange={(e) => setHaFilhos(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm">
+                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Há Filhos? <span className="text-red-600">*</span></label>
+                <select required value={haFilhos} onChange={(e) => setHaFilhos(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm">
                   <option value="">Selecione…</option>
                   <option value="Sim">Sim</option>
                   <option value="Não">Não</option>
@@ -516,7 +592,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="flex flex-col gap-1.5 relative">
+            <div className="flex flex-col gap-1.5 relative col-span-1 sm:col-span-2">
               <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">CPF <span className="text-red-600">*</span></label>
               <input 
                 type="text" required value={cpf} placeholder="000.000.000-00"
@@ -529,9 +605,16 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               )}
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">RG <span className="text-red-600">*</span></label>
-              <input type="text" required value={rg} onChange={(e) => setRg(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none" />
+            {/* RG E ÓRGÃO EXPEDIDOR LADO A LADO */}
+            <div className="grid grid-cols-2 gap-3 col-span-1 sm:col-span-2">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">RG <span className="text-red-600">*</span></label>
+                <input type="text" required value={rg} onChange={(e) => setRg(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Órgão Expedidor <span className="text-red-600">*</span></label>
+                <input type="text" required placeholder="Ex: SDS/PE" value={orgaoExpedidor} onChange={(e) => setOrgaoExpedidor(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none" />
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5 relative">
@@ -605,6 +688,11 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">UF <span className="text-red-600">*</span></label>
               <input type="text" required value={uf} onChange={(e) => setUf(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
+            </div>
+            {/* NOVO CAMPO: PONTO DE REFERENCIA */}
+            <div className="flex flex-col gap-1.5 sm:col-span-3">
+              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Ponto de Referência</label>
+              <input type="text" placeholder="Ex: Próximo à padaria principal, mercado..." value={pontoReferencia} onChange={(e) => setPontoReferencia(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none" />
             </div>
           </div>
         </div>
@@ -711,6 +799,121 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           </div>
         </div>
 
+        {/* NOVA SEÇÃO: INTEGRAÇÃO DOS MINISTÉRIOS COM CONDICIONAIS */}
+        <div className="p-7 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/40">
+          <div className="flex items-baseline gap-3 mb-4">
+            <span className="w-6 h-6 rounded-full bg-iba-dark text-iba-goldLight text-xs font-bold flex items-center justify-center flex-none">5</span>
+            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Atuação em Ministérios</h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Você faz parte de algum ministério? <span className="text-red-600">*</span></label>
+              <select required value={fazParteMinisterio} onChange={(e) => setFazParteMinisterio(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm focus:border-iba-blue w-full">
+                <option value="">Selecione…</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+
+            {/* CASO SIM: QUAL FAZ PARTE */}
+            {fazParteMinisterio === 'Sim' && (
+              <div className="flex flex-col gap-1.5 sm:col-span-2 animate-fadeIn">
+                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Qual ministério você faz parte? <span className="text-red-600">*</span></label>
+                <select required={fazParteMinisterio === 'Sim'} value={qualMinisterioFazParte} onChange={(e) => setQualMinisterioFazParte(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm focus:border-iba-blue w-full">
+                  <option value="">Selecione o ministério…</option>
+                  {MINISTERIOS.map((min) => (
+                    <option key={min} value={min}>{min}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* CASO NÃO: TEM INTERESSE EM PARTICIPAR? */}
+            {fazParteMinisterio === 'Não' && (
+              <div className="flex flex-col gap-1.5 sm:col-span-2 animate-fadeIn">
+                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Você tem interesse em participar de algum? <span className="text-red-600">*</span></label>
+                <select required={fazParteMinisterio === 'Não'} value={querParticiparMinisterio} onChange={(e) => setQuerParticiparMinisterio(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm focus:border-iba-blue w-full">
+                  <option value="">Selecione…</option>
+                  <option value="Sim">Sim</option>
+                  <option value="Não">Não</option>
+                </select>
+              </div>
+            )}
+
+            {/* SE CASO NÃO + TEM INTERESSE: QUAL MINISTÉRIO QUER PARTICIPAR */}
+            {fazParteMinisterio === 'Não' && querParticiparMinisterio === 'Sim' && (
+              <div className="flex flex-col gap-1.5 sm:col-span-2 animate-fadeIn">
+                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Qual ministério você gostaria de participar? <span className="text-red-600">*</span></label>
+                <select required={querParticiparMinisterio === 'Sim'} value={qualMinisterioQuerParticipar} onChange={(e) => setQualMinisterioQuerParticipar(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm focus:border-iba-blue w-full">
+                  <option value="">Selecione o ministério…</option>
+                  {MINISTERIOS.map((min) => (
+                    <option key={min} value={min}>{min}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* SEÇÃO INTEGRADA DOS CAMPOS DINÂMICOS CUSTOMIZADOS DO ADMIN */}
+        {customFields && customFields.length > 0 && (
+          <div className="p-7 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50">
+            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight mb-4">Informações Complementares</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {customFields.map((field) => (
+                <div key={field.id} className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">
+                    {field.rotulo} {field.obrigatorio && <span className="text-red-600">*</span>}
+                  </label>
+                  {field.tipo === 'texto' && (
+                    <input
+                      type="text"
+                      required={field.obrigatorio}
+                      value={respostasCustomizadas[field.chave] || ''}
+                      onChange={(e) => handleCustomFieldChange(field.chave, e.target.value)}
+                      className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full"
+                    />
+                  )}
+                  {field.tipo === 'multipla' && (
+                    <select
+                      required={field.obrigatorio}
+                      value={respostasCustomizadas[field.chave] || ''}
+                      onChange={(e) => handleCustomFieldChange(field.chave, e.target.value)}
+                      className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full"
+                    >
+                      <option value="">Selecione...</option>
+                      {field.opcoes?.map((opcao: string) => (
+                        <option key={opcao} value={opcao}>{opcao}</option>
+                      ))}
+                    </select>
+                  )}
+                  {field.tipo === 'data' && (
+                    <input
+                      type="text"
+                      required={field.obrigatorio}
+                      maxLength={10}
+                      placeholder="DD/MM/AAAA"
+                      value={respostasCustomizadas[field.chave] || ''}
+                      onChange={(e) => handleCustomFieldChange(field.chave, aplicarMascaraData(e.target.value))}
+                      className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full"
+                    />
+                  )}
+                  {field.tipo === 'numero' && (
+                    <input
+                      type="number"
+                      required={field.obrigatorio}
+                      value={respostasCustomizadas[field.chave] || ''}
+                      onChange={(e) => handleCustomFieldChange(field.chave, e.target.value)}
+                      className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* SEÇÃO INTEGRADA DO TERMO COMPLETO DA LGPD */}
         <div className="p-7 bg-neutral-50 dark:bg-neutral-800/20 border-b border-neutral-100 dark:border-neutral-800 space-y-4">
           <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-tight pb-1 border-b border-neutral-200 dark:border-neutral-700">
@@ -722,7 +925,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               Em conformidade com a <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018)</strong>, ao confirmar este cadastro, você autoriza expressamente que a <strong>2ª Igreja Batista de Areias</strong> realize o tratamento de seus dados pessoais para fins exclusivos de gestão eclesiástica, registros de membresia, relatórios estatísticos internos e comunicações oficiais de atividades pastorais.
             </p>
             <p>
-              <strong>Uso de Imagem e Voz:</strong> Você declara estar ciente e autoriza o uso eventual de sua imagem e voice em registros fotográficos ou audiovisuais realizados durante as celebrações públicas e eventos promovidos pela igreja, destinados à divulgação institucional em mídias sociais ou canais de transmissão oficiais, sem fins lucrativos.
+              <strong>Uso de Imagem e Voz:</strong> Você declara estar ciente e autoriza o uso eventual de sua imagem e voz em registros fotográficos ou audiovisuais realizados durante as celebrações públicas e eventos promovidos pela igreja, destinados à divulgação institucional em mídias sociais ou canais de transmissão oficiais, sem fins lucrativos.
             </p>
             <p>
               A igreja compromete-se a zelar pela segurança das informações, não compartilhando dados pessoais com terceiros para fins comerciais. Você poderá solicitar a atualização ou revogação deste consentimento a qualquer momento junto à secretaria da igreja.
@@ -790,5 +993,3 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     </div>
   );
 }
-
-///
