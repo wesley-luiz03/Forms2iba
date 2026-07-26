@@ -6,10 +6,17 @@ import { createClient } from '@/lib/supabase/client';
 
 interface Filho {
   nome: string;
+  cpf: string;
   dataNascimento: string;
   genero: string;
   telefone: string;
   email: string;
+  foiBatizado: string;
+  tipoBatismo: string;
+  igrejaBatismo: string;
+  dataBatismo: string;
+  batismoNaoRecordo: boolean;
+  arrolamento: string;
 }
 
 interface EstadoIBGE {
@@ -21,18 +28,40 @@ interface CidadeIBGE {
   nome: string;
 }
 
-// Lista de ministérios organizada em ordem alfabética
 const MINISTERIOS = [
-  "Ministério da 3ª Idade",
-  "Ministério de Ação Social",
-  "Ministério de Comunicação",
-  "Ministério de Evangelismo e Missões",
-  "Ministério de Família",
-  "Ministério Infantil",
-  "Ministério da Intercessão",
-  "Ministério da Juventude",
-  "Ministério de Música",
+  "Ministério de ação social",
+  "Ministério de comunicação",
+  "Ministério de evangelismo e missões",
+  "Ministério de Intercessão",
+  "Ministério de Louvor",
+  "Ministério da 3ª idade",
+  "Ministério da família",
+  "Ministério da juventude",
+  "Ministério infantil",
   "Ministério Mãos de Deus"
+];
+
+const FAQS = [
+  {
+    id: 1,
+    pergunta: "Qual a diferença entre Membro e Congregante?",
+    resposta: "O membro ativo passou pelo processo de Admissão formal e compõe o rol oficial da igreja no Eklesia. O Congregante participa regularmente dos cultos e atividades, sem possuir o vínculo de membresia formal ainda."
+  },
+  {
+    id: 2,
+    pergunta: "Por que os dados do meu cônjuge e filhos são criados sozinhos?",
+    resposta: "Para simplificar o processo! Nosso sistema analisa os dados inseridos e ramifica a criação individual dos cadastros no banco de dados, mantendo toda a árvore familiar perfeitamente conectada para a secretaria."
+  },
+  {
+    id: 3,
+    pergunta: "Meus documentos estão seguros de acordo com a LGPD?",
+    resposta: "Sim, absolutamente! A 2ª Igreja Batista de Areias assegura o sigilo criptografado de todas as informações familiares coletadas, utilizando os registros de forma exclusiva para a organização interna da membresia."
+  },
+  {
+    id: 4,
+    pergunta: "Não lembro a data exata do meu batismo, o que fazer?",
+    resposta: "Não há problema. Basta marcar a caixa de seleção 'Não me recordo' localizada logo acima do campo de data. O sistema aceitará a homologação do formulário normalmente."
+  }
 ];
 
 export default function MemberForm({ customFields }: { customFields: any[] }) {
@@ -40,28 +69,33 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Estado para capturar erros em tempo real por campo (onBlur)
+  // --- TIPO DE FLUXO PRINCIPAL ---
+  const [tipoFluxo, setTipoFluxo] = useState<'membro' | 'visitante' | null>(null);
   const [errorsByField, setErrorsByField] = useState<{ [key: string]: string }>({});
-
-  // Novo estado para o Checkbox de aceite rápido da LGPD
   const [aceitaTermosLgpd, setAceitaTermosLgpd] = useState(false);
 
-  // Estados dos campos do formulário - Dados Pessoais
+  // Estado para controlar os blocos do FAQ (Accordion)
+  const [faqAberto, setFaqAberto] = useState<number | null>(null);
+
+  // --- ESTADOS DO TITULAR ---
   const [nome, setNome] = useState('');
   const [genero, setGenero] = useState('');
   const [estadoCivil, setEstadoCivil] = useState('');
   const [cpf, setCpf] = useState('');
   const [rg, setRg] = useState('');
-  const [orgaoExpedidor, setOrgaoExpedidor] = useState(''); // Novo Campo
+  const [orgaoExpedidor, setOrgaoExpedidor] = useState('');
   const [celular, setCellular] = useState('');
   const [email, setEmail] = useState('');
-
-  // Formato de data para DD/MM/AAAA
   const [dataNascimento, setDataNascimento] = useState('');
-  const [dataBatismo, setDataBatismo] = useState('');
-  const [dataUniao, setDataUniao] = useState('');
   
-  // Localização e Endereço
+  // Batismo Estendido
+  const [foiBatizado, setFoiBatizado] = useState('');
+  const [tipoBatismo, setTipoBatismo] = useState('');
+  const [igrejaBatismo, setIgrejaBatismo] = useState('');
+  const [dataBatismo, setDataBatismo] = useState('');
+  const [batismoNaoRecordo, setBatismoNaoRecordo] = useState(false);
+
+  // Endereço
   const [cep, setCep] = useState('');
   const [endereco, setEndereco] = useState('');
   const [numero, setNumero] = useState('');
@@ -69,43 +103,59 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
   const [uf, setUf] = useState('');
-  const [pontoReferencia, setPontoReferencia] = useState(''); // Novo Campo
+  const [pontoReferencia, setPontoReferencia] = useState('');
 
-  // Lógica de Cônjuge e Dependentes
-  const [nomeConjuge, setNomeConjuge] = useState('');
-  const [haFilhos, setHaFilhos] = useState('');
-
-  // Estrutura Dinâmica Infinita para Múltiplos Filhos
-  const [filhos, setFilhos] = useState<Filho[]>([
-    { nome: '', dataNascimento: '', genero: '', telefone: '', email: '' }
-  ]);
-
-  // Ficha Eclesiástica e Adicionais
+  // Ficha Complementar
   const [escolaridade, setEscolaridade] = useState('');
   const [tipoSanguineo, setTipoSanguineo] = useState('');
   const [isDoador, setIsDoador] = useState('');
   const [nomePai, setNomePai] = useState('');
   const [paiNaoConsta, setPaiNaoConsta] = useState(false);
   const [nomeMae, setNomeMae] = useState('');
-  const [batismoNaoRecordo, setBatismoNaoRecordo] = useState(false);
 
-  // Perguntas de Ministérios (Novos Campos)
+  // Ministérios
   const [fazParteMinisterio, setFazParteMinisterio] = useState('');
   const [qualMinisterioFazParte, setQualMinisterioFazParte] = useState('');
   const [querParticiparMinisterio, setQuerParticiparMinisterio] = useState('');
   const [qualMinisterioQuerParticipar, setQualMinisterioQuerParticipar] = useState('');
-
-  // Estados dos campos customizados gerados dinamicamente
   const [respostasCustomizadas, setRespostasCustomizadas] = useState<{ [key: string]: any }>({});
 
-  // Estados da API de Naturalidade do IBGE
+  // --- ESTADOS DO CÔNJUGE COMPLETO ---
+  const [conjugeNome, setConjugeNome] = useState('');
+  const [conjugeGenero, setConjugeGenero] = useState('');
+  const [conjugeNascimento, setConjugeNascimento] = useState('');
+  const [conjugeCpf, setConjugeCpf] = useState('');
+  const [conjugeRg, setConjugeRg] = useState('');
+  const [conjugeOrgao, setConjugeOrgao] = useState('');
+  const [conjugeCelular, setConjugeCelular] = useState('');
+  const [conjugeEmail, setConjugeEmail] = useState('');
+  const [conjugeEscolaridade, setConjugeEscolaridade] = useState('');
+  const [conjugeSangue, setConjugeSangue] = useState('');
+  const [conjugeDoador, setConjugeDoador] = useState('');
+  const [conjugePai, setConjugePai] = useState('');
+  const [conjugePaiNaoConsta, setConjugePaiNaoConsta] = useState(false);
+  const [conjugeMae, setConjugeMae] = useState('');
+  const [conjugeBatizado, setConjugeBatizado] = useState('');
+  const [conjugeTipoBatismo, setConjugeTipoBatismo] = useState('');
+  const [conjugeIgrejaBatismo, setConjugeIgrejaBatismo] = useState('');
+  const [conjugeDataBatismo, setConjugeDataBatismo] = useState('');
+  const [conjugeBatismoNaoRecordo, setConjugeBatismoNaoRecordo] = useState(false);
+  const [conjugeArrolamento, setConjugeArrolamento] = useState('');
+  const [conjugeDataUniao, setConjugeDataUniao] = useState('');
+  const [haFilhos, setHaFilhos] = useState('');
+
+  // --- ESTADOS DOS FILHOS ---
+  const [filhos, setFilhos] = useState<Filho[]>([
+    { nome: '', cpf: '', dataNascimento: '', genero: '', telefone: '', email: '', foiBatizado: '', tipoBatismo: '', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }
+  ]);
+
+  // APIs Locais
   const [listaEstados, setListaEstados] = useState<EstadoIBGE[]>([]);
   const [listaCidades, setListaCidades] = useState<string[]>([]);
   const [estadoNatural, setEstadoNatural] = useState('');
   const [cidadeNatural, setCidadeNatural] = useState('');
   const [carregandoCidades, setCarregandoCidades] = useState(false);
 
-  // Carrega os estados brasileiros ao iniciar
   useEffect(() => {
     fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?ordenar=nome')
       .then((res) => res.json())
@@ -113,12 +163,8 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       .catch(() => {});
   }, []);
 
-  // Busca os municípios de acordo com a UF selecionada
   useEffect(() => {
-    if (!estadoNatural) {
-      setListaCidades([]);
-      return;
-    }
+    if (!estadoNatural) { setListaCidades([]); return; }
     setCarregandoCidades(true);
     fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${estadoNatural}/municipios`)
       .then((res) => res.json())
@@ -129,10 +175,9 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       .catch(() => setCarregandoCidades(false));
   }, [estadoNatural]);
 
-  // Auto-complete de Endereço via ViaCEP Otimizado
+  // Preenchimento automático do ViaCEP
   useEffect(() => {
     const cleanCep = cep.replace(/\D/g, '');
-    
     if (cleanCep.length === 8) {
       fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
         .then((res) => res.json())
@@ -142,78 +187,45 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
             setBairro(data.bairro || '');
             setCidade(data.localidade || '');
             setUf(data.uf || '');
-            setErrorsByField(prev => { const n = {...prev}; delete n.cep; return n; });
-          } else {
-            setErrorsByField(prev => ({ ...prev, cep: 'CEP não encontrado na base dos Correios.' }));
           }
-        })
-        .catch(() => {});
+        }).catch(() => {});
     }
   }, [cep]);
 
-  // Manipuladores de Filhos
   const adicionarFilho = () => {
-    setFilhos([...filhos, { nome: '', dataNascimento: '', genero: '', telefone: '', email: '' }]);
+    setFilhos([...filhos, { nome: '', cpf: '', dataNascimento: '', genero: '', telefone: '', email: '', foiBatizado: '', tipoBatismo: '', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }]);
   };
-
   const removerFilho = (index: number) => {
-    if (filhos.length === 1) {
-      setFilhos([{ nome: '', dataNascimento: '', genero: '', telefone: '', email: '' }]);
-    } else {
-      setFilhos(filhos.filter((_, i) => i !== index));
-    }
+    setFilhos(filhos.filter((_, i) => i !== index));
   };
-
-  const atualizarFilho = (index: number, campo: keyof Filho, valor: string) => {
-    const novosFilhos = [...filhos];
+  const atualizarFilho = (index: number, campo: keyof Filho, valor: any) => {
+    const novosFilhos = [...filhos] as any[];
     novosFilhos[index][campo] = valor;
     setFilhos(novosFilhos);
   };
 
-  // --- FUNÇÕES DE MÁSCARA INTELIGENTE OTIMIZADAS ---
   const aplicarMascaraData = (value: string) => {
     let clean = value.replace(/\D/g, '');
     if (clean.length > 8) clean = clean.slice(0, 8);
-    if (clean.length >= 5) {
-      return `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4)}`;
-    } else if (clean.length >= 3) {
-      return `${clean.slice(0, 2)}/${clean.slice(2)}`;
-    }
+    if (clean.length >= 5) return `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4)}`;
+    if (clean.length >= 3) return `${clean.slice(0, 2)}/${clean.slice(2)}`;
     return clean;
   };
 
-  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 8) value = value.slice(0, 8);
-    if (value.length > 5) {
-      value = `${value.slice(0, 5)}-${value.slice(5)}`;
-    }
-    setCep(value);
-  };
-
-  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>, setter: Function) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 11) value = value.slice(0, 11);
-    value = value.replace(/(\d{3})(\d)/, '$1.$2');
-    value = value.replace(/(\d{3})(\d)/, '$1.$2');
-    value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    setCpf(value);
+    value = value.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    setter(value);
   };
 
-  const handleCelularChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCelularChange = (e: React.ChangeEvent<HTMLInputElement>, setter: Function) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 11) value = value.slice(0, 11);
-    
-    if (value.length > 10) {
-      value = value.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
-    } else if (value.length > 6) {
-      value = value.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
-    } else if (value.length > 2) {
-      value = value.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
-    } else if (value.length > 0) {
-      value = value.replace(/^(\d{0,2})$/, '($1');
-    }
-    setCellular(value);
+    if (value.length > 10) value = value.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+    else if (value.length > 6) value = value.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+    else if (value.length > 2) value = value.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+    setter(value);
   };
 
   const formatarParaISO = (dataBr: string) => {
@@ -222,359 +234,274 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     return `${ano}-${mes}-${dia}`;
   };
 
-  const validarCPF = (strCPF: string): boolean => {
-    const cleanCPF = strCPF.replace(/\D/g, '');
-    if (cleanCPF.length !== 11) return false;
-    if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
-
-    let soma = 0;
-    let resto;
-
-    for (let i = 1; i <= 9; i++) {
-      soma = soma + parseInt(cleanCPF.substring(i - 1, i)) * (11 - i);
-    }
-    resto = (soma * 10) % 11;
-    if (resto === 10 || resto === 11) resto = 0;
-    if (resto !== parseInt(cleanCPF.substring(9, 10))) return false;
-
-    soma = 0;
-    for (let i = 1; i <= 10; i++) {
-      soma = soma + parseInt(cleanCPF.substring(i - 1, i)) * (12 - i);
-    }
-    resto = (soma * 10) % 11;
-    if (resto === 10 || resto === 11) resto = 0;
-    if (resto !== parseInt(cleanCPF.substring(10, 11))) return false;
-
-    return true;
-  };
-
-  // --- VALIDATOR INTELLIGENCE ONBLUR ---
   const handleBlurValidation = async (campo: string, valor: string) => {
     let erroMensagem = '';
-
-    if (campo === 'email') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (valor && !emailRegex.test(valor)) {
-        erroMensagem = 'E-mail inválido. Deve conter @ e um domínio válido.';
-      }
+    if (campo === 'cpf' && valor) {
+      const supabase = createClient();
+      const { data } = await supabase.from('membros').select('id').eq('cpf', valor).maybeSingle();
+      if (data) erroMensagem = 'Este CPF já possui cadastro no sistema.';
     }
-
-    if (campo === 'cpf') {
-      if (valor) {
-        if (!validarCPF(valor)) {
-          erroMensagem = 'CPF inválido. Verifique os dígitos verificadores.';
-        } else {
-          const supabase = createClient();
-          const { data, error: fetchError } = await supabase
-            .from('membros')
-            .select('id')
-            .eq('cpf', valor)
-            .maybeSingle();
-
-          if (fetchError) {
-            console.error('Erro ao checar CPF duplicado:', fetchError);
-          } else if (data) {
-            erroMensagem = 'Este CPF já possui uma atualização cadastral realizada no sistema.';
-          }
-        }
-      }
-    }
-
-    if (campo === 'cep') {
-      if (valor && valor.replace(/\D/g, '').length !== 8) {
-        erroMensagem = 'O CEP deve conter exatamente 8 dígitos (00000-000).';
-      }
-    }
-
-    if (campo === 'celular') {
-      if (valor && valor.replace(/\D/g, '').length < 11) {
-        erroMensagem = 'O celular deve conter o DDD + 9 dígitos.';
-      }
-    }
-
-    if (campo === 'dataNascimento' || campo === 'dataBatismo' || campo === 'dataUniao') {
-      if (valor && valor.length !== 10) {
-        erroMensagem = 'Data incompleta. Use o formato padrão DD/MM/AAAA.';
-      }
-    }
-
-    setErrorsByField(prev => {
-      const novosErros = { ...prev };
-      if (erroMensagem) {
-        novosErros[campo] = erroMensagem;
-      } else {
-        delete novosErros[campo];
-      }
-      return novosErros;
-    });
+    setErrorsByField(prev => ({ ...prev, [campo]: erroMensagem }));
   };
 
   function handleTriggerValidation(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-
-    // Validação estrita do Checkbox da LGPD antes de submeter
-    if (!aceitaTermosLgpd) {
-      setError('Você precisa marcar a caixinha de consentimento da LGPD no final do formulário.');
-      return;
-    }
-
-    // VALIDAÇÃO EXCLUSIVA CASAMENTO OBRIGATÓRIO
-    if (estadoCivil === 'Casado(a)') {
-      if (!nomeConjuge.trim()) {
-        setError('Como você selecionou Estado Civil "Casado(a)", o nome do cônjuge é obrigatório.');
-        return;
-      }
-      if (!dataUniao || dataUniao.length !== 10) {
-        setError('Como você selecionou Estado Civil "Casado(a)", a data da união é obrigatória e deve estar no formato correto.');
-        return;
-      }
-      if (!haFilhos) {
-        setError('Como você selecionou Estado Civil "Casado(a)", você precisa responder se possui filhos.');
-        return;
-      }
-    }
-
-    const errosAtivos = Object.keys(errorsByField).filter(key => errorsByField[key] !== '');
-
-    if (errosAtivos.length > 0) {
-      setError(errorsByField.cpf || 'Por favor, corrija os erros apontados nos campos antes de enviar.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    if (!validarCPF(cpf) || cep.replace(/\D/g, '').length !== 8 || dataNascimento.length !== 10 || celular.replace(/\D/g, '').length < 11 || !orgaoExpedidor.trim()) {
-      setError('Existem campos obrigatórios vazios ou em formatos incorretos.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
+    if (!aceitaTermosLgpd) { setError('Você precisa aceitar os termos da LGPD.'); return; }
+    if (estadoCivil === 'Casado(a)' && !conjugeNome.trim()) { setError('Preencha os dados obrigatórios do cônjuge.'); return; }
     ejecutarEnvioSupabase();
   }
 
   async function ejecutarEnvioSupabase() {
     setLoading(true);
     const supabase = createClient();
-    const naturalidadeCompleta = `${cidadeNatural} - ${estadoNatural}`;
+    const arrolamentoCalculado = tipoFluxo === 'membro' ? 'ADMISSÃO' : 'FREQUENTADOR';
 
-    const nascimentoISO = formatarParaISO(dataNascimento);
-    const uniaoISO = estadoCivil === 'Casado(a)' ? formatarParaISO(dataUniao) : null;
-    const batismoISO = batismoNaoRecordo ? 'NÃO ME RECORDO' : dataBatismo;
-
-    // Lógica consolidada de todos os campos extras + dinâmicos no JSONB
-    const todosCamposExtra = {
-      ...respostasCustomizadas,
-      orgao_expedidor: orgaoExpedidor,
-      ponto_referencia: pontoReferencia || null,
-      faz_parte_ministerio: fazParteMinisterio,
-      qual_ministerio_faz_parte: fazParteMinisterio === 'Sim' ? qualMinisterioFazParte : null,
-      quer_participar_ministerio: fazParteMinisterio === 'Não' ? querParticiparMinisterio : null,
-      qual_ministerio_quer_participar: (fazParteMinisterio === 'Não' && querParticiparMinisterio === 'Sim') ? qualMinisterioQuerParticipar : null,
-    };
+    const batismoFinal = foiBatizado === 'Não' ? 'NÃO BATIZADO' : (batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(dataBatismo));
 
     const payloadMembro = {
-      nome, 
-      genero, 
-      data_nascimento: nascimentoISO, 
-      estado_civil: estadoCivil, 
-      cpf, 
-      celular, 
-      email, 
-      cep, 
-      endereco, 
-      numero,
-      complemento, 
-      bairro, 
-      cidade, 
-      uf, 
-      rg, 
-      escolaridade, 
-      tipo_sanguineo: tipoSanguineo || null,
-      eh_doador: isDoador || null, 
-      naturalidade: naturalidadeCompleta,
-      nome_pai: paiNaoConsta ? 'NÃO CONSTA' : nomePai, 
-      nome_mae: nomeMae, 
-      data_batismo: batismoISO,
+      nome, genero, data_nascimento: formatarParaISO(dataNascimento),
+      estado_civil: estadoCivil || 'Não informado', cpf: cpf || null, celular, email,
+      cep, endereco, numero, complemento, bairro, cidade, uf,
+      rg: rg || null, escolaridade: escolaridade || 'Não informado', tipo_sanguineo: tipoSanguineo || null,
+      eh_doador: isDoador || null, naturalidade: cidadeNatural && estadoNatural ? `${cidadeNatural} - ${estadoNatural}` : null, 
+      nome_pai: paiNaoConsta ? 'NÃO CONSTA' : nomePai, nome_mae: nomeMae, data_batismo: batismoFinal,
+      arrolamento: arrolamentoCalculado,
       dados_familiares: {
-        nomeConjuge: estadoCivil === 'Casado(a)' ? nomeConjuge : null,
-        dataUniao: uniaoISO, 
-        filhos: haFilhos === 'Sim' ? filhos : []
+        conjugeCompleto: estadoCivil === 'Casado(a)' ? {
+          nome: conjugeNome, genero: conjugeGenero, dataNascimento: formatarParaISO(conjugeNascimento),
+          cpf: conjugeCpf || null, rg: conjugeRg || null, orgaoExpedidor: conjugeOrgao || null,
+          celular: conjugeCelular, email: conjugeEmail, escolaridade: conjugeEscolaridade,
+          tipoSanguineo: conjugeSangue, isDoador: conjugeDoador, nomePai: conjugePaiNaoConsta ? 'NÃO CONSTA' : conjugePai,
+          nomeMae: conjugeMae, foiBatizado: conjugeBatizado, tipoBatismo: conjugeTipoBatismo, igrejaBatismo: conjugeIgrejaBatismo,
+          dataBatismo: conjugeBatismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(conjugeDataBatismo),
+          arrolamento: conjugeArrolamento
+        } : null,
+        dataUniao: formatarParaISO(conjugeDataUniao),
+        filhos: haFilhos === 'Sim' ? filhos.map(f => ({
+          ...f, dataNascimento: formatarParaISO(f.dataNascimento), dataBatismo: f.batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(f.dataBatismo)
+        })) : []
       },
-      campos_extra: todosCamposExtra
+      campos_extra: {
+        ...respostasCustomizadas, orgao_expedidor: orgaoExpedidor || null, ponto_referencia: pontoReferencia || null,
+        igreja_batismo: igrejaBatismo || null, tipo_batismo: tipoBatismo || null, faz_parte_ministerio: fazParteMinisterio,
+        qual_ministerio_faz_parte: qualMinisterioFazParte || null, quer_participar_ministerio: querParticiparMinisterio || null,
+        qual_ministerio_quer_participar: qualMinisterioQuerParticipar || null
+      }
     };
 
-    const { error: insertError } = await supabase.from('membros').insert(payloadMembro);
+    const { error: insError } = await supabase.from('membros').insert(payloadMembro);
+    if (insError) { setError(insError.message); setLoading(false); return; }
 
-    if (insertError) {
-      setLoading(false);
-      if (insertError.code === '23505') {
-        setError('Este CPF já foi cadastrado por outro acesso simultâneo.');
-      } else {
-        setError(`Erro ao gravar dados no banco de dados: ${insertError.message}`);
-      }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    const WEBHOOK_AUTOMACAO_LOCAL = '/api/notificar';
-    fetch(WEBHOOK_AUTOMACAO_LOCAL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        evento: 'novo_membro_cadastrado',
-        nome: payloadMembro.nome,
-        celular: payloadMembro.celular,
-        email: payloadMembro.email,
-        bairro: payloadMembro.bairro,
-        data_cadastro: new Date().toLocaleString('pt-BR')
-      })
-    }).catch((e) => console.warn('Erro em background no envio da notificação:', e));
-
-    setLoading(false);
     router.push('/sucesso');
   }
 
-  const handleCustomFieldChange = (chave: string, valor: any) => {
-    setRespostasCustomizadas(prev => ({
-      ...prev,
-      [chave]: valor
-    }));
-  };
+  if (!tipoFluxo) {
+    return (
+      <div className="max-w-3xl mx-auto py-10 px-4 animate-fadeIn">
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-8 text-center space-y-6">
+          <div className="w-16 h-1 bg-iba-gold mx-auto rounded-full" />
+          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">Seja bem-vindo(a) à 2IBA!</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-4">
+            <button type="button" onClick={() => setTipoFluxo('visitante')} className="group p-6 bg-neutral-50 dark:bg-neutral-800/40 border-2 rounded-2xl text-center hover:border-emerald-500 transition-all">
+              <h3 className="font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-emerald-500">Sou Visitante / Congregante</h3>
+            </button>
+            <button type="button" onClick={() => setTipoFluxo('membro')} className="group p-6 bg-neutral-50 dark:bg-neutral-800/40 border-2 rounded-2xl text-center hover:border-iba-blue transition-all">
+              <h3 className="font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-iba-blue">Sou Membro da 2IBA</h3>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleTriggerValidation} className="bg-white dark:bg-neutral-900 text-black dark:text-white border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl overflow-hidden font-sans transition-all duration-300">
+      <div className="bg-neutral-100 dark:bg-neutral-900 border rounded-lg p-3.5 flex justify-between items-center text-xs">
+        <span>Você está preenchendo como: <strong className="uppercase text-iba-blue">{tipoFluxo === 'membro' ? 'Membro' : 'Visitante / Congregante'}</strong></span>
+        <button type="button" onClick={() => setTipoFluxo(null)} className="text-red-500 hover:underline font-semibold">Alterar</button>
+      </div>
+    
+      <form onSubmit={handleTriggerValidation} className="bg-white dark:bg-neutral-900 text-black dark:text-white border rounded-xl shadow-xl overflow-hidden font-sans">
         
-        {error && (
-          <div className="mx-7 mt-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 text-sm rounded-lg px-4 py-3">
-            {error}
-          </div>
-        )}
-
-        {/* SEÇÃO 1: DADOS PESSOAIS */}
-        <div className="p-7 border-b border-neutral-100 dark:border-neutral-800">
-          <div className="flex items-baseline gap-3 mb-4">
-            <span className="w-6 h-6 rounded-full bg-iba-dark text-iba-goldLight text-xs font-bold flex items-center justify-center flex-none">1</span>
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Dados pessoais</h3>
-          </div>
-
+        {/* SEÇÃO 1: DADOS DO TITULAR */}
+        <div className="p-7 border-b">
+          <h3 className="text-lg font-bold mb-4">1. Dados Pessoais do Titular</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="flex flex-col gap-1.5 relative col-span-1 sm:col-span-2">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Nome completo <span className="text-red-600">*</span></label>
-              <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full" />
+            <div className="flex flex-col gap-1.5 col-span-2">
+              <label className="text-xs font-bold uppercase">Nome completo *</label>
+              <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent outline-none w-full" />
             </div>
-
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Gênero <span className="text-red-600">*</span></label>
-              <select required value={genero} onChange={(e) => setGenero(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full">
-                <option value="">Selecione…</option>
-                <option value="Masculino">Masculino</option>
-                <option value="Feminino">Feminino</option>
+              <label className="text-xs font-bold uppercase">Gênero *</label>
+              <select required value={genero} onChange={(e) => setGenero(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent">
+                <option value="">Selecione…</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option>
               </select>
             </div>
-
-            <div className="flex flex-col gap-1.5 relative">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Data de nascimento <span className="text-red-600">*</span></label>
-              <input 
-                type="text" required maxLength={10} placeholder="DD/MM/AAAA" value={dataNascimento}
-                onChange={(e) => setDataNascimento(aplicarMascaraData(e.target.value))}
-                onBlur={(e) => handleBlurValidation('dataNascimento', e.target.value)}
-                className={`border bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none w-full transition-colors ${errorsByField.dataNascimento ? 'border-red-500 focus:border-red-500' : 'border-neutral-300 dark:border-neutral-700 focus:border-iba-blue'}`}
-              />
-              {errorsByField.dataNascimento && (
-                <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 mt-1 animate-fadeIn">⚠️ {errorsByField.dataNascimento}</span>
-              )}
-            </div>
-
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Estado civil <span className="text-red-600">*</span></label>
-              <select required value={estadoCivil} onChange={(e) => setEstadoCivil(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full">
-                <option value="">Selecione…</option>
-                <option value="Solteiro(a)">Solteiro(a)</option>
-                <option value="Casado(a)">Casado(a)</option>
-                <option value="Divorciado(a)">Divorciado(a)</option>
-                <option value="Viúvo(a)">Viúvo(a)</option>
+              <label className="text-xs font-bold uppercase">Data de nascimento *</label>
+              <input type="text" required maxLength={10} placeholder="DD/MM/AAAA" value={dataNascimento} onChange={(e) => setDataNascimento(aplicarMascaraData(e.target.value))} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+            </div>
+            <div className="flex flex-col gap-1.5 col-span-2">
+              <label className="text-xs font-bold uppercase">Estado civil *</label>
+              <select required value={estadoCivil} onChange={(e) => setEstadoCivil(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent">
+                <option value="">Selecione…</option><option value="Solteiro(a)">Solteiro(a)</option><option value="Casado(a)">Casado(a)</option><option value="Divorciado(a)">Divorciado(a)</option><option value="Viúvo(a)">Viúvo(a)</option>
               </select>
             </div>
           </div>
 
-          {/* COMPONENTE DINÂMICO DE CASAMENTO (AGORA OBRIGATÓRIOS) */}
+          {/* FICHA DO CÔNJUGE POSICIONADA LOGO ABAIXO DO ESTADO CIVIL "CASADO(A)" */}
           {estadoCivil === 'Casado(a)' && (
-            <div className="mt-5 p-5 bg-neutral-50 dark:bg-neutral-800/40 rounded-xl border border-neutral-200 dark:border-neutral-800 gap-5 grid grid-cols-1 sm:grid-cols-2 animate-fadeIn">
-              <div className="flex flex-col gap-1.5 col-span-1 sm:col-span-2">
-                <h4 className="text-sm font-bold text-iba-blue uppercase tracking-wider">Informações do Cônjuge (Obrigatório)</h4>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Nome do Cônjuge <span className="text-red-600">*</span></label>
-                <input type="text" required value={nomeConjuge} onChange={(e) => setNomeConjuge(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
-              </div>
-              <div className="flex flex-col gap-1.5 relative">
-                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Data da União <span className="text-red-600">*</span></label>
-                <input 
-                  type="text" required maxLength={10} placeholder="DD/MM/AAAA" value={dataUniao}
-                  onChange={(e) => setDataUniao(aplicarMascaraData(e.target.value))}
-                  onBlur={(e) => handleBlurValidation('dataUniao', e.target.value)}
-                  className={`border bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm transition-colors ${errorsByField.dataUniao ? 'border-red-500' : 'border-neutral-300 dark:border-neutral-700'}`}
-                />
-                {errorsByField.dataUniao && (
-                  <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 mt-1">⚠️ {errorsByField.dataUniao}</span>
+            <div className="mt-6 p-6 bg-neutral-50 dark:bg-neutral-800/20 border border-iba-blue/30 rounded-xl space-y-5 animate-fadeIn">
+              <h4 className="text-base font-bold text-iba-blue flex items-center gap-2">
+                💍 Ficha Cadastral do Cônjuge (Criação de Novo Cadastro Interligado)
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-1.5 col-span-2">
+                  <label className="text-xs font-bold uppercase">Nome Completo do Cônjuge *</label>
+                  <input type="text" required value={conjugeNome} onChange={(e) => setConjugeNome(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase">Situação Eclesiástica dela(e) *</label>
+                  <select required value={conjugeArrolamento} onChange={(e) => setConjugeArrolamento(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900">
+                    <option value="">Selecione…</option>
+                    <option value="ADMISSÃO">Membro</option>
+                    <option value="FREQUENTADOR">Congregante</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase">Gênero do Cônjuge *</label>
+                  <select required value={conjugeGenero} onChange={(e) => setConjugeGenero(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900">
+                    <option value="">Selecione…</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Feminino">Feminino</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase">Data de Nascimento do Cônjuge *</label>
+                  <input type="text" required placeholder="DD/MM/AAAA" value={conjugeNascimento} onChange={(e) => setConjugeNascimento(aplicarMascaraData(e.target.value))} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase">Celular do Cônjuge *</label>
+                  <input type="text" required value={conjugeCelular} onChange={(e) => handleCelularChange(e, setConjugeCelular)} placeholder="(81) 99999-9999" className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900" />
+                </div>
+                <div className="flex flex-col gap-1.5 col-span-2">
+                  <label className="text-xs font-bold uppercase">E-mail do Cônjuge *</label>
+                  <input type="email" required value={conjugeEmail} placeholder="conjuge@email.com" className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900" />
+                </div>
+                
+                {/* Batismo do Cônjuge */}
+                <div className="flex flex-col gap-1.5 col-span-2 border-t pt-4 mt-2">
+                  <label className="text-xs font-bold uppercase">O Cônjuge já foi batizado? *</label>
+                  <select required value={conjugeBatizado} onChange={(e) => setConjugeBatizado(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900">
+                    <option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option>
+                  </select>
+                </div>
+                {conjugeBatizado === 'Sim' && (
+                  <>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold uppercase">Tipo de Batismo do Cônjuge *</label>
+                      <select required value={conjugeTipoBatismo} onChange={(e) => setConjugeTipoBatismo(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900">
+                        <option value="">Selecione…</option><option value="Imersão">Imersão</option><option value="Aspersão">Aspersão</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold uppercase">Igreja do Batismo do Cônjuge *</label>
+                      <input type="text" required value={conjugeIgrejaBatismo} onChange={(e) => setConjugeIgrejaBatismo(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900" />
+                    </div>
+                    <div className="flex flex-col gap-1.5 col-span-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold uppercase">Data do Batismo do Cônjuge</label>
+                        <label className="text-xs text-neutral-500 flex items-center gap-1 cursor-pointer">
+                          <input type="checkbox" checked={conjugeBatismoNaoRecordo} onChange={(e) => setConjugeBatismoNaoRecordo(e.target.checked)} /> Não me recordo
+                        </label>
+                      </div>
+                      <input type="text" required={!conjugeBatismoNaoRecordo} disabled={conjugeBatismoNaoRecordo} maxLength={10} placeholder="DD/MM/AAAA" value={conjugeBatismoNaoRecordo ? '' : conjugeDataBatismo} onChange={(e) => setConjugeDataBatismo(aplicarMascaraData(e.target.value))} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900" />
+                    </div>
+                  </>
                 )}
               </div>
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Há Filhos? <span className="text-red-600">*</span></label>
-                <select required value={haFilhos} onChange={(e) => setHaFilhos(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm">
-                  <option value="">Selecione…</option>
-                  <option value="Sim">Sim</option>
-                  <option value="Não">Não</option>
+
+              <div className="flex flex-col gap-1.5 pt-4 border-t">
+                <label className="text-xs font-bold uppercase">Possuem filhos? *</label>
+                <select required value={haFilhos} onChange={(e) => setHaFilhos(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900">
+                  <option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option>
                 </select>
               </div>
 
-              {/* COMPONENTE DE FILHOS */}
+              {/* SEÇÃO COMPLETA DOS FILHOS CO-RELACIONADOS */}
               {haFilhos === 'Sim' && (
-                <div className="col-span-1 sm:col-span-2 space-y-4">
-                  <div className="flex justify-between items-center border-b border-neutral-200 dark:border-neutral-700 pb-2">
-                    <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Dependentes / Filhos</h5>
-                    <button type="button" onClick={adicionarFilho} className="bg-iba-blue hover:bg-iba-dark text-white text-xs font-bold px-3 py-1.5 rounded-md transition-colors shadow-sm">+ Adicionar Filho</button>
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="flex justify-between items-center">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Filhos / Dependentes</h5>
+                    <button type="button" onClick={adicionarFilho} className="bg-iba-blue text-white text-xs font-bold px-3 py-1.5 rounded-md">+ Adicionar Filho</button>
                   </div>
-
                   {filhos.map((filho, idx) => (
-                    <div key={idx} className="p-4 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 space-y-3 relative animate-fadeIn">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded text-neutral-600 dark:text-neutral-300">Filho #{idx + 1}</span>
-                        {filhos.length > 1 && (
-                          <button type="button" onClick={() => removerFilho(idx)} className="text-xs text-red-500 hover:underline">Remover</button>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div key={idx} className="p-4 bg-white dark:bg-neutral-900 border rounded-lg space-y-4 animate-fadeIn">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1 col-span-2">
+                          <label className="text-[11px] font-bold">Nome do Filho *</label>
+                          <input type="text" required value={filho.nome} onChange={(e) => atualizarFilho(idx, 'nome', e.target.value)} className="border rounded px-3 py-2 text-sm bg-transparent" />
+                        </div>
+                        {/* CPF DO FILHO OBRIGATÓRIO */}
                         <div className="flex flex-col gap-1">
-                          <label className="text-[11px] font-bold text-neutral-500 uppercase">Nome <span className="text-red-500">*</span></label>
-                          <input type="text" required value={filho.nome} onChange={(e) => atualizarFilho(idx, 'nome', e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded px-3 py-2 text-sm" />
+                          <label className="text-[11px] font-bold">CPF do Filho *</label>
+                          <input type="text" required value={filho.cpf} onChange={(e) => handleCpfChange(e, (v: string) => atualizarFilho(idx, 'cpf', v))} placeholder="000.000.000-00" className="border rounded px-3 py-2 text-sm bg-transparent" />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-[11px] font-bold text-neutral-500 uppercase">Nascimento <span className="text-red-500">*</span></label>
-                          <input 
-                            type="text" required maxLength={10} placeholder="DD/MM/AAAA" value={filho.dataNascimento}
-                            onChange={(e) => atualizarFilho(idx, 'dataNascimento', aplicarMascaraData(e.target.value))}
-                            className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded px-3 py-2 text-sm" 
-                          />
+                          <label className="text-[11px] font-bold">Data de Nascimento *</label>
+                          <input type="text" required placeholder="DD/MM/AAAA" value={filho.dataNascimento} onChange={(e) => atualizarFilho(idx, 'dataNascimento', aplicarMascaraData(e.target.value))} className="border rounded px-3 py-2 text-sm bg-transparent" />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-[11px] font-bold text-neutral-500 uppercase">Gênero <span className="text-red-500">*</span></label>
-                          <select required value={filho.genero} onChange={(e) => atualizarFilho(idx, 'genero', e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded px-3 py-2 text-sm">
-                            <option value="">Sel…</option>
-                            <option value="Masculino">Masculino</option>
-                            <option value="Feminino">Feminino</option>
+                          <label className="text-[11px] font-bold">Gênero do Filho *</label>
+                          <select required value={filho.genero} onChange={(e) => atualizarFilho(idx, 'genero', e.target.value)} className="border rounded px-3 py-2 text-sm bg-transparent">
+                            <option value="">Selecione…</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option>
                           </select>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-[11px] font-bold text-neutral-400 uppercase">Telefone (Opcional)</label>
-                          <input type="text" value={filho.telefone} onChange={(e) => atualizarFilho(idx, 'telefone', e.target.value)} placeholder="(81) 99999-0000" className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded px-3 py-2 text-sm" />
+                          <label className="text-[11px] font-bold">Situação Eclesiástica do Filho *</label>
+                          <select required value={filho.arrolamento} onChange={(e) => atualizarFilho(idx, 'arrolamento', e.target.value)} className="border rounded px-3 py-2 text-sm bg-transparent">
+                            <option value="FREQUENTADOR">Congregante</option>
+                            <option value="ADMISSÃO">Membro</option>
+                          </select>
                         </div>
-                        <div className="flex flex-col gap-1 sm:col-span-2">
-                          <label className="text-[11px] font-bold text-neutral-400 uppercase">E-mail (Opcional)</label>
-                          <input type="email" value={filho.email} onChange={(e) => atualizarFilho(idx, 'email', e.target.value)} placeholder="filho@email.com" className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded px-3 py-2 text-sm" />
+
+                        {/* Batismo do Filho */}
+                        <div className="flex flex-col gap-1 sm:col-span-2 border-t pt-2 mt-1">
+                          <label className="text-[11px] font-bold">O filho já foi batizado? *</label>
+                          <select required value={filho.foiBatizado} onChange={(e) => atualizarFilho(idx, 'foiBatizado', e.target.value)} className="border rounded px-3 py-2 text-sm bg-transparent">
+                            <option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option>
+                          </select>
                         </div>
+                        {filho.foiBatizado === 'Sim' && (
+                          <>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[11px] font-bold">Tipo de Batismo *</label>
+                              <select required value={filho.tipoBatismo} onChange={(e) => atualizarFilho(idx, 'tipoBatismo', e.target.value)} className="border rounded px-3 py-2 text-sm bg-transparent">
+                                <option value="">Selecione…</option><option value="Imersão">Imersão</option><option value="Aspersão">Aspersão</option>
+                              </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[11px] font-bold">Igreja do Batismo *</label>
+                              <input type="text" required value={filho.igrejaBatismo} onChange={(e) => atualizarFilho(idx, 'igrejaBatismo', e.target.value)} className="border rounded px-3 py-2 text-sm bg-transparent" />
+                            </div>
+                            <div className="flex flex-col gap-1 sm:col-span-2">
+                              <div className="flex justify-between items-center">
+                                <label className="text-[11px] font-bold">Data do Batismo</label>
+                                <label className="text-xs text-neutral-500 flex items-center gap-1 cursor-pointer">
+                                  <input type="checkbox" checked={filho.batismoNaoRecordo} onChange={(e) => atualizarFilho(idx, 'batismoNaoRecordo', e.target.checked)} /> Não me recordo
+                                </label>
+                              </div>
+                              <input type="text" required={!filho.batismoNaoRecordo} disabled={filho.batismoNaoRecordo} maxLength={10} placeholder="DD/MM/AAAA" value={filho.batismoNaoRecordo ? '' : filho.dataBatismo} onChange={(e) => atualizarFilho(idx, 'dataBatismo', aplicarMascaraData(e.target.value))} className="border rounded px-3 py-2 text-sm bg-transparent" />
+                            </div>
+                          </>
+                        )}
+
+                        {filhos.length > 1 && (
+                          <div className="flex items-end justify-end sm:col-span-2 pt-2">
+                            <button type="button" onClick={() => removerFilho(idx)} className="text-xs text-red-500 hover:underline">Remover Filho</button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -584,411 +511,196 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           )}
         </div>
 
-        {/* SEÇÃO 2: DOCUMENTAÇÃO E CONTATO */}
-        <div className="p-7 border-b border-neutral-100 dark:border-neutral-800">
-          <div className="flex items-baseline gap-3 mb-4">
-            <span className="w-6 h-6 rounded-full bg-iba-dark text-iba-goldLight text-xs font-bold flex items-center justify-center flex-none">2</span>
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Documentos e Contato</h3>
-          </div>
-
+        {/* SEÇÃO 2: HISTÓRICO DE BATISMO */}
+        <div className="p-7 border-b">
+          <h3 className="text-lg font-bold mb-4">2. Histórico de Batismo</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="flex flex-col gap-1.5 relative col-span-1 sm:col-span-2">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">CPF <span className="text-red-600">*</span></label>
-              <input 
-                type="text" required value={cpf} placeholder="000.000.000-00"
-                onChange={handleCpfChange}
-                onBlur={(e) => handleBlurValidation('cpf', e.target.value)}
-                className={`border bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none transition-colors ${errorsByField.cpf ? 'border-red-500 focus:border-red-500 shadow-sm' : 'border-neutral-300 dark:border-neutral-700 focus:border-iba-blue'}`}
-              />
-              {errorsByField.cpf && (
-                <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 mt-1 animate-fadeIn">⚠️ {errorsByField.cpf}</span>
-              )}
-            </div>
-
-            {/* RG E ÓRGÃO EXPEDIDOR LADO A LADO */}
-            <div className="grid grid-cols-2 gap-3 col-span-1 sm:col-span-2">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">RG <span className="text-red-600">*</span></label>
-                <input type="text" required value={rg} onChange={(e) => setRg(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Órgão Expedidor <span className="text-red-600">*</span></label>
-                <input type="text" required placeholder="Ex: SDS/PE" value={orgaoExpedidor} onChange={(e) => setOrgaoExpedidor(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none" />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5 relative">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Celular <span className="text-red-600">*</span></label>
-              <input 
-                type="text" required value={celular} onChange={handleCelularChange} 
-                onBlur={(e) => handleBlurValidation('celular', e.target.value)}
-                placeholder="(81) 99999-9999" 
-                className={`border bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none transition-colors ${errorsByField.celular ? 'border-red-500 focus:border-red-500' : 'border-neutral-300 dark:border-neutral-700 focus:border-iba-blue'}`} 
-              />
-              {errorsByField.celular && (
-                <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 mt-1 animate-fadeIn">⚠️ {errorsByField.celular}</span>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1.5 relative">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">E-mail <span className="text-red-600">*</span></label>
-              <input 
-                type="text" required value={email} placeholder="exemplo@dominio.com"
-                onChange={(e) => setEmail(e.target.value)}
-                onBlur={(e) => handleBlurValidation('email', e.target.value)}
-                className={`border bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none transition-colors ${errorsByField.email ? 'border-red-500 focus:border-red-500' : 'border-neutral-300 dark:border-neutral-700 focus:border-iba-blue'}`}
-              />
-              {errorsByField.email && (
-                <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 mt-1 animate-fadeIn">⚠️ {errorsByField.email}</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* SEÇÃO 3: ENDEREÇO */}
-        <div className="p-7 border-b border-neutral-100 dark:border-neutral-800">
-          <div className="flex items-baseline gap-3 mb-4">
-            <span className="w-6 h-6 rounded-full bg-iba-dark text-iba-goldLight text-xs font-bold flex items-center justify-center flex-none">3</span>
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Endereço</h3>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="flex flex-col gap-1.5 relative">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">CEP <span className="text-red-600">*</span></label>
-              <input 
-                type="text" required maxLength={9} value={cep} placeholder="00000-000" 
-                onChange={handleCepChange}
-                onBlur={(e) => handleBlurValidation('cep', e.target.value)}
-                className={`border bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none transition-colors ${errorsByField.cep ? 'border-red-500 focus:border-red-500' : 'border-neutral-300 dark:border-neutral-700'}`}
-              />
-              {errorsByField.cep && (
-                <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 mt-1 animate-fadeIn">⚠️ {errorsByField.cep}</span>
-              )}
-            </div>
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Rua / Logradouro <span className="text-red-600">*</span></label>
-              <input type="text" required value={endereco} onChange={(e) => setEndereco(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Número <span className="text-red-600">*</span></label>
-              <input type="text" required value={numero} onChange={(e) => setNumero(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Complemento</label>
-              <input type="text" value={complemento} onChange={(e) => setComplemento(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Bairro <span className="text-red-600">*</span></label>
-              <input type="text" required value={bairro} onChange={(e) => setBairro(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
-            </div>
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Cidade <span className="text-red-600">*</span></label>
-              <input type="text" required value={cidade} onChange={(e) => setCidade(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">UF <span className="text-red-600">*</span></label>
-              <input type="text" required value={uf} onChange={(e) => setUf(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
-            </div>
-            {/* NOVO CAMPO: PONTO DE REFERENCIA */}
-            <div className="flex flex-col gap-1.5 sm:col-span-3">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Ponto de Referência</label>
-              <input type="text" placeholder="Ex: Próximo à padaria principal, mercado..." value={pontoReferencia} onChange={(e) => setPontoReferencia(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none" />
-            </div>
-          </div>
-        </div>
-
-        {/* SEÇÃO 4: ADICIONAIS */}
-        <div className="p-7 border-b border-neutral-100 dark:border-neutral-800">
-          <div className="flex items-baseline gap-3 mb-4">
-            <span className="w-6 h-6 rounded-full bg-iba-dark text-iba-goldLight text-xs font-bold flex items-center justify-center flex-none">4</span>
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Ficha Eclesiástica e Adicionais</h3>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Escolaridade <span className="text-red-600">*</span></label>
-              <select required value={escolaridade} onChange={(e) => setEscolaridade(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm">
-                <option value="">Selecione…</option>
-                <option value="Não Alfabetizado">Não Alfabetizado</option>
-                <option value="Ensino Fundamental Incompleto">Ensino Fundamental Incompleto</option>
-                <option value="Ensino Fundamental Completo">Ensino Fundamental Completo</option>
-                <option value="Curso Técnico Incompleto">Curso Técnico Incompleto</option>
-                <option value="Curso Técnico Completo">Curso Técnico Completo</option>
-                <option value="Ensino Médio Incompleto">Ensino Médio Incompleto</option>
-                <option value="Ensino Médio Completo">Ensino Médio Completo</option>
-                <option value="Ensino Superior Incompleto">Ensino Superior Incompleto</option>
-                <option value="Ensino Superior Completo">Ensino Superior Completo</option>
-                <option value="Mestrado">Mestrado</option>
-                <option value="Doutorado">Doutorado</option>
-                <option value="Pós-Graduação">Pós-Graduação</option>
+            <div className="flex flex-col gap-1.5 col-span-2">
+              <label className="text-xs font-bold uppercase">Você já foi batizado? *</label>
+              <select required value={foiBatizado} onChange={(e) => setFoiBatizado(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent">
+                <option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option>
               </select>
             </div>
+            {foiBatizado === 'Sim' && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase">Tipo de Batismo *</label>
+                  <select required value={tipoBatismo} onChange={(e) => setTipoBatismo(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent">
+                    <option value="">Selecione…</option><option value="Imersão">Imersão</option><option value="Aspersão">Aspersão</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase">Nome da Igreja do Batismo *</label>
+                  <input type="text" required value={igrejaBatismo} onChange={(e) => setIgrejaBatismo(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+                </div>
+                <div className="flex flex-col gap-1.5 col-span-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold uppercase">Data do Batismo</label>
+                    <label className="text-xs text-neutral-500 flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={batismoNaoRecordo} onChange={(e) => setBatismoNaoRecordo(e.target.checked)} /> Não me recordo</label>
+                  </div>
+                  <input type="text" required={!batismoNaoRecordo} disabled={batismoNaoRecordo} maxLength={10} placeholder="DD/MM/AAAA" value={batismoNaoRecordo ? '' : dataBatismo} onChange={(e) => setDataBatismo(aplicarMascaraData(e.target.value))} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
 
+        {/* SEÇÃO 3: DOCUMENTAÇÕES E CONTATOS */}
+        <div className="p-7 border-b">
+          <h3 className="text-lg font-bold mb-4">3. Documentações e Contatos</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase">CPF</label>
+              <input type="text" value={cpf} onChange={(e) => handleCpfChange(e, setCpf)} placeholder="000.000.000-00" className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Tipo Sanguíneo</label>
-                <select value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm">
-                  <option value="">Sel…</option>
-                  <option value="A+">A+</option><option value="A-">A-</option>
-                  <option value="B+">B+</option><option value="B-">B-</option>
-                  <option value="AB+">AB+</option><option value="AB-">AB-</option>
-                  <option value="O+">O+</option><option value="O-">O-</option>
-                </select>
+                <label className="text-xs font-bold uppercase">RG (Opcional)</label>
+                <input type="text" value={rg} onChange={(e) => setRg(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Doador?</label>
-                <select value={isDoador} onChange={(e) => setIsDoador(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm">
-                  <option value="">Sel…</option>
-                  <option value="Sim">Sim</option>
-                  <option value="Não">Não</option>
-                </select>
+                <label className="text-xs font-bold uppercase">Órgão Expedidor</label>
+                <input type="text" placeholder="Ex: SDS/PE" value={orgaoExpedidor} onChange={(e) => setOrgaoExpedidor(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
               </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:col-span-2 p-4 bg-neutral-50 dark:bg-neutral-800/30 border border-neutral-200 dark:border-neutral-800 rounded-xl">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Estado Natal (UF) <span className="text-red-600">*</span></label>
-                <select required value={estadoNatural} onChange={(e) => { setEstadoNatural(e.target.value); setCidadeNatural(''); }} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm">
-                  <option value="">Selecione o Estado…</option>
-                  {listaEstados.map((est) => (
-                    <option key={est.sigla} value={est.sigla}>{est.nome}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Cidade Natal <span className="text-red-600">*</span></label>
-                <select required value={cidadeNatural} disabled={!estadoNatural || carregandoCidades} onChange={(e) => setCidadeNatural(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm disabled:opacity-50">
-                  <option value="">{carregandoCidades ? 'Carregando Cidades…' : 'Selecione a Cidade…'}</option>
-                  {listaCidades.map((cid) => (
-                    <option key={cid} value={cid}>{cid}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Nome da Mãe <span className="text-red-600">*</span></label>
-              <input type="text" required value={nomeMae} onChange={(e) => setNomeMae(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm" />
+              <label className="text-xs font-bold uppercase">Celular *</label>
+              <input type="text" required value={celular} onChange={(e) => handleCelularChange(e, setCellular)} placeholder="(81) 99999-9999" className="border rounded-lg px-4 py-3 text-sm bg-transparent outline-none w-full" />
             </div>
-
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Nome do Pai</label>
-                <label className="text-xs text-neutral-500 flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={paiNaoConsta} onChange={(e) => setPaiNaoConsta(e.target.checked)} className="rounded" /> Não Consta</label>
-              </div>
-              <input type="text" disabled={paiNaoConsta} value={paiNaoConsta ? '' : nomePai} onChange={(e) => setNomePai(e.target.value)} placeholder={paiNaoConsta ? "Isento" : "Nome completo do pai"} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm disabled:opacity-50" />
-            </div>
-
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Data do Batismo <span className="text-red-600">*</span></label>
-                <label className="text-xs text-neutral-500 flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={batismoNaoRecordo} onChange={(e) => setBatismoNaoRecordo(e.target.checked)} className="rounded" /> "Não me recordo"</label>
-              </div>
-              <input 
-                type="text" required={!batismoNaoRecordo} disabled={batismoNaoRecordo} maxLength={10}
-                placeholder={batismoNaoRecordo ? "Isento" : "DD/MM/AAAA"}
-                value={batismoNaoRecordo ? '' : dataBatismo} 
-                onChange={(e) => setDataBatismo(aplicarMascaraData(e.target.value))} 
-                onBlur={(e) => handleBlurValidation('dataBatismo', e.target.value)}
-                className={`border bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm disabled:opacity-50 transition-colors ${errorsByField.dataBatismo ? 'border-red-500 focus:border-red-500' : 'border-neutral-300 dark:border-neutral-700 focus:border-iba-blue'}`}
-              />
-              {errorsByField.dataBatismo && !batismoNaoRecordo && (
-                <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 mt-1 animate-fadeIn">⚠️ {errorsByField.dataBatismo}</span>
-              )}
+              <label className="text-xs font-bold uppercase">E-mail *</label>
+              <input type="email" required value={email} placeholder="exemplo@email.com" className="border rounded-lg px-4 py-3 text-sm bg-transparent w-full" />
             </div>
           </div>
         </div>
 
-        {/* NOVA SEÇÃO: INTEGRAÇÃO DOS MINISTÉRIOS COM CONDICIONAIS */}
-        <div className="p-7 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/40">
-          <div className="flex items-baseline gap-3 mb-4">
-            <span className="w-6 h-6 rounded-full bg-iba-dark text-iba-goldLight text-xs font-bold flex items-center justify-center flex-none">5</span>
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Atuação em Ministérios</h3>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {/* SEÇÃO 4: ENDEREÇO RESIDENCIAL (RESTAURADOS BAIRRO, CIDADE E ESTADO) */}
+        <div className="p-7 border-b">
+          <h3 className="text-lg font-bold mb-4">4. Endereço Residencial</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase">CEP *</label>
+              <input type="text" required maxLength={9} value={cep} onChange={(e) => setCep(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+            </div>
             <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Você faz parte de algum ministério? <span className="text-red-600">*</span></label>
-              <select required value={fazParteMinisterio} onChange={(e) => setFazParteMinisterio(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm focus:border-iba-blue w-full">
-                <option value="">Selecione…</option>
-                <option value="Sim">Sim</option>
-                <option value="Não">Não</option>
+              <label className="text-xs font-bold uppercase">Logradouro / Rua *</label>
+              <input type="text" required value={endereco} onChange={(e) => setEndereco(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase">Número *</label>
+              <input type="text" required value={numero} onChange={(e) => setNumero(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase">Complemento</label>
+              <input type="text" value={complemento} onChange={(e) => setComplemento(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase">Bairro *</label>
+              <input type="text" required value={bairro} onChange={(e) => setBairro(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+            </div>
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-xs font-bold uppercase">Cidade *</label>
+              <input type="text" required value={cidade} onChange={(e) => setCidade(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase">Estado (UF) *</label>
+              <input type="text" required maxLength={2} value={uf} onChange={(e) => setUf(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent uppercase" />
+            </div>
+            <div className="flex flex-col gap-1.5 sm:col-span-3">
+              <label className="text-xs font-bold uppercase">Ponto de Referência</label>
+              <input type="text" value={pontoReferencia} onChange={(e) => setPontoReferencia(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-transparent" />
+            </div>
+          </div>
+        </div>
+
+        {/* SEÇÃO 5: MINISTÉRIOS COM PERGUNTA CONDICIONAL EM "NÃO" */}
+        {tipoFluxo === 'membro' && (
+          <div className="p-7 border-b bg-neutral-50/50 dark:bg-neutral-800/10 space-y-5">
+            <h3 className="text-lg font-bold mb-4">5. Atuação Operacional e Ministérios</h3>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase">Você faz parte de algum ministério da 2IBA? *</label>
+              <select required value={fazParteMinisterio} onChange={(e) => setFazParteMinisterio(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900">
+                <option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option>
               </select>
             </div>
 
-            {/* CASO SIM: QUAL FAZ PARTE */}
             {fazParteMinisterio === 'Sim' && (
-              <div className="flex flex-col gap-1.5 sm:col-span-2 animate-fadeIn">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Qual ministério você faz parte? <span className="text-red-600">*</span></label>
-                <select required={fazParteMinisterio === 'Sim'} value={qualMinisterioFazParte} onChange={(e) => setQualMinisterioFazParte(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm focus:border-iba-blue w-full">
+              <div className="flex flex-col gap-1.5 animate-fadeIn">
+                <label className="text-xs font-bold uppercase">Qual ministério você faz parte? *</label>
+                <select required value={qualMinisterioFazParte} onChange={(e) => setQualMinisterioFazParte(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900">
                   <option value="">Selecione o ministério…</option>
-                  {MINISTERIOS.map((min) => (
-                    <option key={min} value={min}>{min}</option>
-                  ))}
+                  {MINISTERIOS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
             )}
 
-            {/* CASO NÃO: TEM INTERESSE EM PARTICIPAR? */}
             {fazParteMinisterio === 'Não' && (
-              <div className="flex flex-col gap-1.5 sm:col-span-2 animate-fadeIn">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Você tem interesse em participar de algum? <span className="text-red-600">*</span></label>
-                <select required={fazParteMinisterio === 'Não'} value={querParticiparMinisterio} onChange={(e) => setQuerParticiparMinisterio(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm focus:border-iba-blue w-full">
-                  <option value="">Selecione…</option>
-                  <option value="Sim">Sim</option>
-                  <option value="Não">Não</option>
-                </select>
-              </div>
-            )}
-
-            {/* SE CASO NÃO + TEM INTERESSE: QUAL MINISTÉRIO QUER PARTICIPAR */}
-            {fazParteMinisterio === 'Não' && querParticiparMinisterio === 'Sim' && (
-              <div className="flex flex-col gap-1.5 sm:col-span-2 animate-fadeIn">
-                <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">Qual ministério você gostaria de participar? <span className="text-red-600">*</span></label>
-                <select required={querParticiparMinisterio === 'Sim'} value={qualMinisterioQuerParticipar} onChange={(e) => setQualMinisterioQuerParticipar(e.target.value)} className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm focus:border-iba-blue w-full">
-                  <option value="">Selecione o ministério…</option>
-                  {MINISTERIOS.map((min) => (
-                    <option key={min} value={min}>{min}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* SEÇÃO INTEGRADA DOS CAMPOS DINÂMICOS CUSTOMIZADOS DO ADMIN */}
-        {customFields && customFields.length > 0 && (
-          <div className="p-7 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50">
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight mb-4">Informações Complementares</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {customFields.map((field) => (
-                <div key={field.id} className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">
-                    {field.rotulo} {field.obrigatorio && <span className="text-red-600">*</span>}
-                  </label>
-                  {field.tipo === 'texto' && (
-                    <input
-                      type="text"
-                      required={field.obrigatorio}
-                      value={respostasCustomizadas[field.chave] || ''}
-                      onChange={(e) => handleCustomFieldChange(field.chave, e.target.value)}
-                      className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full"
-                    />
-                  )}
-                  {field.tipo === 'multipla' && (
-                    <select
-                      required={field.obrigatorio}
-                      value={respostasCustomizadas[field.chave] || ''}
-                      onChange={(e) => handleCustomFieldChange(field.chave, e.target.value)}
-                      className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full"
-                    >
-                      <option value="">Selecione...</option>
-                      {field.opcoes?.map((opcao: string) => (
-                        <option key={opcao} value={opcao}>{opcao}</option>
-                      ))}
-                    </select>
-                  )}
-                  {field.tipo === 'data' && (
-                    <input
-                      type="text"
-                      required={field.obrigatorio}
-                      maxLength={10}
-                      placeholder="DD/MM/AAAA"
-                      value={respostasCustomizadas[field.chave] || ''}
-                      onChange={(e) => handleCustomFieldChange(field.chave, aplicarMascaraData(e.target.value))}
-                      className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full"
-                    />
-                  )}
-                  {field.tipo === 'numero' && (
-                    <input
-                      type="number"
-                      required={field.obrigatorio}
-                      value={respostasCustomizadas[field.chave] || ''}
-                      onChange={(e) => handleCustomFieldChange(field.chave, e.target.value)}
-                      className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-black dark:text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-iba-blue w-full"
-                    />
-                  )}
+              <div className="space-y-4 animate-fadeIn">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase">Você deseja fazer parte de algum ministério? *</label>
+                  <select required value={querParticiparMinisterio} onChange={(e) => setQuerParticiparMinisterio(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900">
+                    <option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option>
+                  </select>
                 </div>
-              ))}
-            </div>
+
+                {querParticiparMinisterio === 'Sim' && (
+                  <div className="flex flex-col gap-1.5 animate-fadeIn">
+                    <label className="text-xs font-bold uppercase">Qual ministério você gostaria de integrar? *</label>
+                    <select required value={qualMinisterioQuerParticipar} onChange={(e) => setQualMinisterioQuerParticipar(e.target.value)} className="border rounded-lg px-4 py-3 text-sm bg-white dark:bg-neutral-900">
+                      <option value="">Selecione o ministério de interesse…</option>
+                      {MINISTERIOS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* SEÇÃO INTEGRADA DO TERMO COMPLETO DA LGPD */}
-        <div className="p-7 bg-neutral-50 dark:bg-neutral-800/20 border-b border-neutral-100 dark:border-neutral-800 space-y-4">
-          <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-tight pb-1 border-b border-neutral-200 dark:border-neutral-700">
-            Termo de Autorização e Consentimento (LGPD)
-          </h4>
-          
-          <div className="max-h-[160px] overflow-y-auto text-xs text-neutral-600 dark:text-neutral-400 space-y-3 pr-2 leading-relaxed bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 rounded-lg">
-            <p>
-              Em conformidade com a <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018)</strong>, ao confirmar este cadastro, você autoriza expressamente que a <strong>2ª Igreja Batista de Areias</strong> realize o tratamento de seus dados pessoais para fins exclusivos de gestão eclesiástica, registros de membresia, relatórios estatísticos internos e comunicações oficiais de atividades pastorais.
-            </p>
-            <p>
-              <strong>Uso de Imagem e Voz:</strong> Você declara estar ciente e autoriza o uso eventual de sua imagem e voz em registros fotográficos ou audiovisuais realizados durante as celebrações públicas e eventos promovidos pela igreja, destinados à divulgação institucional em mídias sociais ou canais de transmissão oficiais, sem fins lucrativos.
-            </p>
-            <p>
-              A igreja compromete-se a zelar pela segurança das informações, não compartilhando dados pessoais com terceiros para fins comerciais. Você poderá solicitar a atualização ou revogação deste consentimento a qualquer momento junto à secretaria da igreja.
-            </p>
-          </div>
-
-          <div className="flex items-start gap-3 pt-2">
-            <input
-              type="checkbox"
-              id="aceitaTermosLgpd"
-              checked={aceitaTermosLgpd}
-              onChange={(e) => setAceitaTermosLgpd(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-neutral-300 text-iba-blue focus:ring-iba-blue cursor-pointer"
-            />
-            <label htmlFor="aceitaTermosLgpd" className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed select-none cursor-pointer">
-              Li o termo acima e <b>autorizo expressamente</b> a 2ª Igreja Batista de Areias a tratar os meus dados em total conformidade com a LGPD.
-            </label>
+        {/* TERMO DE CONSENTIMENTO */}
+        <div className="p-7 bg-neutral-50 dark:bg-neutral-800/10 space-y-4">
+          <div className="flex items-start gap-3">
+            <input type="checkbox" id="aceitaTermosLgpd" checked={aceitaTermosLgpd} onChange={(e) => setAceitaTermosLgpd(e.target.checked)} className="mt-1 w-4 h-4 cursor-pointer" />
+            <label htmlFor="aceitaTermosLgpd" className="text-xs text-neutral-600 dark:text-neutral-400 select-none cursor-pointer">Autorizo o processamento seguro dos dados da minha família sob as conformidades estritas da LGPD.</label>
           </div>
         </div>
 
-        {/* SEÇÃO DO BOTÃO DE SUBMISSÃO */}
-        <div className="p-7 bg-neutral-50 dark:bg-neutral-800/50 flex justify-end">
-          <button 
-            type="submit" 
-            disabled={loading || Object.keys(errorsByField).length > 0} 
-            className="bg-iba-blue hover:bg-iba-dark text-white font-bold text-sm px-8 py-4 rounded-lg shadow-md transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Enviando Cadastro...
-              </span>
-            ) : (
-              'Finalizar e Enviar Cadastro'
-            )}
+        <div className="p-7 bg-neutral-50 dark:bg-neutral-800/40 flex justify-end">
+          <button type="submit" disabled={loading} className="bg-iba-blue text-white font-bold text-sm px-8 py-4 rounded-lg shadow-md transition-all transform active:scale-95">
+            {loading ? 'Processando Família...' : 'Finalizar Cadastro Familiar'}
           </button>
         </div>
       </form>
 
-      {/* BANNER INSTITUCIONAL DE SUPORTE */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md transition-all duration-300">
-        <div className="flex items-center gap-3.5 text-center sm:text-left">
-          <div className="w-10 h-10 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-full flex items-center justify-center flex-none">
-            <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397 0 11.966 0c3.178.001 6.169 1.24 8.424 3.496 2.254 2.256 3.491 5.249 3.491 8.425 0 6.561-5.337 11.91-11.907 11.91-2.005-.001-3.975-.51-5.729-1.48L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.413 9.864-9.842.002-2.63-1.023-5.101-2.885-6.964C16.531 1.936 14.062.912 11.966.912c-5.439 0-9.864 4.414-9.868 9.843-.001 1.71.464 3.385 1.346 4.914l-.991 3.616 3.7-.971zM17.16 14.5c-.297-.15-1.758-.868-2.031-.967-.272-.099-.47-.148-.668.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.074-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.568-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-            </svg>
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-neutral-900 dark:text-white">Ficou com alguma dúvida ou encontrou um problema?</h4>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Fale diretamente com a equipe de suporte e secretaria da 2IBA pelo WhatsApp Business.</p>
-          </div>
+      {/* DÚVIDAS FREQUENTES (ESTRUTURA EM BLOCOS / ACCORDION DINÂMICO) */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-md space-y-4 transition-all duration-300">
+        <h4 className="text-base font-bold text-neutral-900 dark:text-white pb-2 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-2">
+          ❓ Perguntas e Dúvidas Frequentes
+        </h4>
+        <div className="space-y-3">
+          {FAQS.map((faq) => {
+            const isAberto = faqAberto === faq.id;
+            return (
+              <div key={faq.id} className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden transition-colors bg-neutral-50/50 dark:bg-neutral-800/20">
+                <button
+                  type="button"
+                  onClick={() => setFaqAberto(isAberto ? null : faq.id)}
+                  className="w-full text-left p-4 flex justify-between items-center gap-4 hover:bg-neutral-100 dark:hover:bg-neutral-800/40 transition-colors"
+                >
+                  <span className="font-bold text-xs text-neutral-800 dark:text-neutral-200">{faq.pergunta}</span>
+                  <span className="text-xs font-semibold px-2.5 py-1 bg-iba-blue/10 text-iba-blue rounded-md flex-none">
+                    {isAberto ? 'Recolher -' : 'Ver Resposta +'}
+                  </span>
+                </button>
+                {isAberto && (
+                  <div className="p-4 pt-0 text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed border-t border-neutral-100 dark:border-neutral-800/50 animate-fadeIn">
+                    {faq.resposta}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-        <a 
-          href="https://wa.me/558192549740?text=Ol%C3%A1%21+Estou+preenchendo+o+Formul%C3%A1rio+de+Membresia+da+2IBA+e+preciso+de+ajuda." 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider px-5 py-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 flex-none"
-        >
-          Chamar no Suporte
-        </a>
       </div>
     </div>
   );
