@@ -28,13 +28,6 @@ export default async function HomePage() {
           </h1>
         </div>
 
-        {/* Link discreto para os administradores acessarem o painel */}
-        <Link
-          href="/admin/login"
-          className="text-sm font-semibold text-iba-blue dark:text-neutral-400 hover:underline bg-white/40 dark:bg-neutral-900/40 px-4 py-2 rounded-full border border-iba-dark/5 dark:border-neutral-800 transition-all duration-300"
-        >
-          Área do desenvolvedor
-        </Link>
       </header>
 
       {/* Área Central do Formulário Público */}
