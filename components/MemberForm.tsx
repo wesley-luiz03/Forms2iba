@@ -176,9 +176,9 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   const [conjugeBatismoNaoRecordo, setConjugeBatismoNaoRecordo] = useState(false);
   const [conjugeArrolamento, setConjugeArrolamento] = useState('');
   const [conjugeDataUniao, setConjugeDataUniao] = useState('');
-  const [haFilhos, setHaFilhos] = useState('');
 
-  // --- ESTADOS DOS FILHOS ---
+  // --- ESTADOS INDEPENDENTES DOS FILHOS ---
+  const [possuiFilhos, setPossuiFilhos] = useState('');
   const [filhos, setFilhos] = useState<Filho[]>([
     { nome: '', cpf: '', dataNascimento: '', genero: '', telefone: '', email: '', foiBatizado: '', tipoBatismo: '', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }
   ]);
@@ -342,6 +342,15 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       if (!validarCPF(conjugeCpf)) { setError('O CPF digitado para o cônjuge é inválido.'); return; }
     }
 
+    if (possuiFilhos === 'Sim') {
+      for (let i = 0; i < filhos.length; i++) {
+        if (!validarCPF(filhos[i].cpf)) {
+          setError(`O CPF do filho #${i + 1} (${filhos[i].nome || 'sem nome'}) é inválido.`);
+          return;
+        }
+      }
+    }
+
     // Validação de Batismo do Titular
     if (!batismoNaoRecordo && (!dataBatismo || dataBatismo.length !== 10)) {
       setError('A data do batismo do titular é obrigatória ou marque a opção "Não me recordo".');
@@ -389,7 +398,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           arrolamento: conjugeArrolamento
         } : null,
         dataUniao: formatarParaISO(conjugeDataUniao),
-        filhos: haFilhos === 'Sim' ? filhos.map(f => ({
+        filhos: possuiFilhos === 'Sim' ? filhos.map(f => ({
           ...f, dataNascimento: formatarParaISO(f.dataNascimento), dataBatismo: f.batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(f.dataBatismo)
         })) : []
       },
@@ -403,16 +412,18 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       }
     };
 
-  const { error: insError } = await supabase.from('membros').insert(payloadMembro);
-  if (insError) { 
-    if (insError.message.includes('membros_cpf_unique') || insError.code === '23505') {
-      setError('Este CPF já está cadastrado no sistema. Verifique os dados digitados ou entre em contato com a secretaria.');
-    } else {
-      setError(insError.message); 
+    const { error: insError } = await supabase.from('membros').insert(payloadMembro);
+    
+    if (insError) { 
+      // TRATAMENTO AMIGÁVEL PARA CPF DUPLICADO
+      if (insError.message.includes('membros_cpf_unique') || insError.code === '23505') {
+        setError('Este CPF já está cadastrado no sistema. Verifique os dados digitados ou entre em contato com a secretaria.');
+      } else {
+        setError(insError.message); 
+      }
+      setLoading(false); 
+      return; 
     }
-    setLoading(false); 
-    return; 
-  }
 
     router.push('/sucesso');
   }
@@ -557,7 +568,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
             </div>
           </div>
 
-          {/* FICHA DO CÔNJUGE */}
+          {/* FICHA DO CÔNJUGE (SE CASADO) */}
           {estadoCivil === 'Casado(a)' && (
             <div className="mt-6 sm:mt-8 p-4 sm:p-8 bg-neutral-50/80 dark:bg-neutral-800/30 border-l-4 border-l-iba-blue border border-neutral-200/80 dark:border-neutral-800 rounded-2xl space-y-4 sm:space-y-6 animate-fadeIn">
               <div className="flex items-center gap-2">
@@ -696,150 +707,158 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                   </>
                 )}
               </div>
-
-              <div className="flex flex-col gap-1.5 sm:gap-2 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                <label className={labelStyle}>Possuem filhos? <span className="text-red-500">*</span></label>
-                <select required value={haFilhos} onChange={(e) => setHaFilhos(e.target.value)} className={inputStyle}>
-                  <option value="">Selecione…</option>
-                  <option value="Sim">Sim</option>
-                  <option value="Não">Não</option>
-                </select>
-              </div>
-
-              {/* SEÇÃO DOS FILHOS */}
-              {haFilhos === 'Sim' && (
-                <div className="space-y-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                  <div className="flex justify-between items-center">
-                    <h5 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500">Filhos / Dependentes</h5>
-                    <button type="button" onClick={adicionarFilho} className="bg-iba-blue hover:bg-iba-dark text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg transition-all shadow-sm active:scale-95">
-                      + Adicionar Filho
-                    </button>
-                  </div>
-
-                  {filhos.map((filho, idx) => (
-                    <div key={idx} className="p-4 sm:p-5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-3.5 sm:space-y-4 shadow-sm animate-fadeIn">
-                      <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
-                        <span className="text-xs font-bold text-iba-blue">Filho #{idx + 1}</span>
-                        {filhos.length > 1 && (
-                          <button type="button" onClick={() => removerFilho(idx)} className="text-xs font-bold text-red-500 hover:underline">Remover</button>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
-                        <div className="flex flex-col gap-1.5 col-span-1 sm:col-span-2">
-                          <label className={labelStyle}>Nome do Filho <span className="text-red-500">*</span></label>
-                          <input type="text" required value={filho.nome} onChange={(e) => atualizarFilho(idx, 'nome', e.target.value)} placeholder="Nome completo" className={inputStyle} />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <label className={labelStyle}>CPF do Filho <span className="text-red-500">*</span></label>
-                          <input 
-                            type="text" 
-                            required 
-                            value={filho.cpf} 
-                            onChange={(e) => handleCpfChange(e, (v: string) => atualizarFilho(idx, 'cpf', v))} 
-                            onBlur={(e) => validarCampoEmTempoReal(`filhoCpf_${idx}`, e.target.value)}
-                            placeholder="000.000.000-00" 
-                            className={`${inputStyle} ${errorsByField[`filhoCpf_${idx}`] ? inputErrorStyle : ''}`} 
-                          />
-                          {errorsByField[`filhoCpf_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoCpf_${idx}`]}</span>}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <label className={labelStyle}>Data de Nascimento <span className="text-red-500">*</span></label>
-                          <input 
-                            type="text" 
-                            required 
-                            placeholder="DD/MM/AAAA" 
-                            value={filho.dataNascimento} 
-                            onChange={(e) => atualizarFilho(idx, 'dataNascimento', aplicarMascaraData(e.target.value))} 
-                            onBlur={(e) => validarCampoEmTempoReal(`filhoDataNasc_${idx}`, e.target.value)}
-                            className={`${inputStyle} ${errorsByField[`filhoDataNasc_${idx}`] ? inputErrorStyle : ''}`} 
-                          />
-                          {errorsByField[`filhoDataNasc_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataNasc_${idx}`]}</span>}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <label className={labelStyle}>Gênero <span className="text-red-500">*</span></label>
-                          <select required value={filho.genero} onChange={(e) => atualizarFilho(idx, 'genero', e.target.value)} className={inputStyle}>
-                            <option value="">Selecione…</option>
-                            <option value="Masculino">Masculino</option>
-                            <option value="Feminino">Feminino</option>
-                          </select>
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <label className={labelStyle}>Situação Eclesiástica <span className="text-red-500">*</span></label>
-                          <select required value={filho.arrolamento} onChange={(e) => atualizarFilho(idx, 'arrolamento', e.target.value)} className={inputStyle}>
-                            <option value="FREQUENTADOR">Congregante</option>
-                            <option value="ADMISSÃO">Membro Ativo</option>
-                          </select>
-                        </div>
-
-                        {/* Batismo do Filho */}
-                        <div className="flex flex-col gap-1.5 col-span-1 sm:col-span-2 border-t border-neutral-100 dark:border-neutral-800 pt-3 mt-1">
-                          <label className={labelStyle}>O filho já foi batizado? <span className="text-red-500">*</span></label>
-                          <select required value={filho.foiBatizado} onChange={(e) => atualizarFilho(idx, 'foiBatizado', e.target.value)} className={inputStyle}>
-                            <option value="">Selecione…</option>
-                            <option value="Sim">Sim</option>
-                            <option value="Não">Não</option>
-                          </select>
-                        </div>
-
-                        {filho.foiBatizado === 'Sim' && (
-                          <>
-                            <div className="flex flex-col gap-1.5">
-                              <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
-                              <select required value={filho.tipoBatismo} onChange={(e) => atualizarFilho(idx, 'tipoBatismo', e.target.value)} className={inputStyle}>
-                                <option value="">Selecione…</option>
-                                <option value="Imersão">Imersão</option>
-                                <option value="Aspersão">Aspersão</option>
-                              </select>
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                              <label className={labelStyle}>Igreja do Batismo <span className="text-red-500">*</span></label>
-                              <input type="text" required value={filho.igrejaBatismo} onChange={(e) => atualizarFilho(idx, 'igrejaBatismo', e.target.value)} placeholder="Nome da igreja" className={inputStyle} />
-                            </div>
-
-                            <div className="flex flex-col gap-1.5 col-span-1 sm:col-span-2">
-                              <div className="flex justify-between items-center">
-                                <label className={labelStyle}>
-                                  Data do Batismo {!filho.batismoNaoRecordo && <span className="text-red-500">*</span>}
-                                </label>
-                                <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
-                                  <input type="checkbox" checked={filho.batismoNaoRecordo} onChange={(e) => atualizarFilho(idx, 'batismoNaoRecordo', e.target.checked)} className="rounded text-iba-blue" />
-                                  Não me recordo
-                                </label>
-                              </div>
-                              <input 
-                                type="text" 
-                                required={!filho.batismoNaoRecordo} 
-                                disabled={filho.batismoNaoRecordo} 
-                                maxLength={10} 
-                                placeholder={filho.batismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
-                                value={filho.batismoNaoRecordo ? '' : filho.dataBatismo} 
-                                onChange={(e) => atualizarFilho(idx, 'dataBatismo', aplicarMascaraData(e.target.value))} 
-                                onBlur={(e) => !filho.batismoNaoRecordo && validarCampoEmTempoReal(`filhoDataBatismo_${idx}`, e.target.value)}
-                                className={`${inputStyle} disabled:opacity-50 ${errorsByField[`filhoDataBatismo_${idx}`] ? inputErrorStyle : ''}`} 
-                              />
-                              {errorsByField[`filhoDataBatismo_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataBatismo_${idx}`]}</span>}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
 
-        {/* SEÇÃO 2: HISTÓRICO DE BATISMO (DIRETO E SEM PERGUNTA SIM/NÃO PARA MEMBROS) */}
+        {/* SEÇÃO 2: NÚCLEO FAMILIAR E DEPENDENTES (TOTALMENTE INDEPENDENTE) */}
         <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">2</span>
+            <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Núcleo Familiar</h3>
+          </div>
+
+          <div className="flex flex-col gap-1.5 sm:gap-2">
+            <label className={labelStyle}>Possui filhos? <span className="text-red-500">*</span></label>
+            <select required value={possuiFilhos} onChange={(e) => setPossuiFilhos(e.target.value)} className={inputStyle}>
+              <option value="">Selecione…</option>
+              <option value="Sim">Sim</option>
+              <option value="Não">Não</option>
+            </select>
+          </div>
+
+          {/* LISTA DE FILHOS */}
+          {possuiFilhos === 'Sim' && (
+            <div className="space-y-4 pt-5 mt-4 border-t border-neutral-100 dark:border-neutral-800">
+              <div className="flex justify-between items-center">
+                <h5 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500">Filhos Cadastrados</h5>
+                <button type="button" onClick={adicionarFilho} className="bg-iba-blue hover:bg-iba-dark text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg transition-all shadow-sm active:scale-95">
+                  + Adicionar Filho
+                </button>
+              </div>
+
+              {filhos.map((filho, idx) => (
+                <div key={idx} className="p-4 sm:p-5 bg-neutral-50/60 dark:bg-neutral-800/20 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-3.5 sm:space-y-4 shadow-sm animate-fadeIn">
+                  <div className="flex justify-between items-center pb-2 border-b border-neutral-200/80 dark:border-neutral-800">
+                    <span className="text-xs font-bold text-iba-blue">Filho(a) {idx + 1}</span>
+                    {filhos.length > 1 && (
+                      <button type="button" onClick={() => removerFilho(idx)} className="text-xs font-bold text-red-500 hover:underline">Remover</button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+                    <div className="flex flex-col gap-1.5 col-span-1 sm:col-span-2">
+                      <label className={labelStyle}>Nome do Filho <span className="text-red-500">*</span></label>
+                      <input type="text" required value={filho.nome} onChange={(e) => atualizarFilho(idx, 'nome', e.target.value)} placeholder="Nome completo" className={inputStyle} />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelStyle}>CPF do Filho <span className="text-red-500">*</span></label>
+                      <input 
+                        type="text" 
+                        required 
+                        value={filho.cpf} 
+                        onChange={(e) => handleCpfChange(e, (v: string) => atualizarFilho(idx, 'cpf', v))} 
+                        onBlur={(e) => validarCampoEmTempoReal(`filhoCpf_${idx}`, e.target.value)}
+                        placeholder="000.000.000-00" 
+                        className={`${inputStyle} ${errorsByField[`filhoCpf_${idx}`] ? inputErrorStyle : ''}`} 
+                      />
+                      {errorsByField[`filhoCpf_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoCpf_${idx}`]}</span>}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelStyle}>Data de Nascimento <span className="text-red-500">*</span></label>
+                      <input 
+                        type="text" 
+                        required 
+                        placeholder="DD/MM/AAAA" 
+                        value={filho.dataNascimento} 
+                        onChange={(e) => atualizarFilho(idx, 'dataNascimento', aplicarMascaraData(e.target.value))} 
+                        onBlur={(e) => validarCampoEmTempoReal(`filhoDataNasc_${idx}`, e.target.value)}
+                        className={`${inputStyle} ${errorsByField[`filhoDataNasc_${idx}`] ? inputErrorStyle : ''}`} 
+                      />
+                      {errorsByField[`filhoDataNasc_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataNasc_${idx}`]}</span>}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelStyle}>Gênero <span className="text-red-500">*</span></label>
+                      <select required value={filho.genero} onChange={(e) => atualizarFilho(idx, 'genero', e.target.value)} className={inputStyle}>
+                        <option value="">Selecione…</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Feminino">Feminino</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelStyle}>Situação Eclesiástica <span className="text-red-500">*</span></label>
+                      <select required value={filho.arrolamento} onChange={(e) => atualizarFilho(idx, 'arrolamento', e.target.value)} className={inputStyle}>
+                        <option value="FREQUENTADOR">Congregante</option>
+                        <option value="ADMISSÃO">Membro Ativo</option>
+                      </select>
+                    </div>
+
+                    {/* Batismo do Filho */}
+                    <div className="flex flex-col gap-1.5 col-span-1 sm:col-span-2 border-t border-neutral-200 dark:border-neutral-800 pt-3 mt-1">
+                      <label className={labelStyle}>O filho já foi batizado? <span className="text-red-500">*</span></label>
+                      <select required value={filho.foiBatizado} onChange={(e) => atualizarFilho(idx, 'foiBatizado', e.target.value)} className={inputStyle}>
+                        <option value="">Selecione…</option>
+                        <option value="Sim">Sim</option>
+                        <option value="Não">Não</option>
+                      </select>
+                    </div>
+
+                    {filho.foiBatizado === 'Sim' && (
+                      <>
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
+                          <select required value={filho.tipoBatismo} onChange={(e) => atualizarFilho(idx, 'tipoBatismo', e.target.value)} className={inputStyle}>
+                            <option value="">Selecione…</option>
+                            <option value="Imersão">Imersão</option>
+                            <option value="Aspersão">Aspersão</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelStyle}>Igreja do Batismo <span className="text-red-500">*</span></label>
+                          <input type="text" required value={filho.igrejaBatismo} onChange={(e) => atualizarFilho(idx, 'igrejaBatismo', e.target.value)} placeholder="Nome da igreja" className={inputStyle} />
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 col-span-1 sm:col-span-2">
+                          <div className="flex justify-between items-center">
+                            <label className={labelStyle}>
+                              Data do Batismo {!filho.batismoNaoRecordo && <span className="text-red-500">*</span>}
+                            </label>
+                            <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                              <input type="checkbox" checked={filho.batismoNaoRecordo} onChange={(e) => atualizarFilho(idx, 'batismoNaoRecordo', e.target.checked)} className="rounded text-iba-blue" />
+                              Não me recordo
+                            </label>
+                          </div>
+                          <input 
+                            type="text" 
+                            required={!filho.batismoNaoRecordo} 
+                            disabled={filho.batismoNaoRecordo} 
+                            maxLength={10} 
+                            placeholder={filho.batismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
+                            value={filho.batismoNaoRecordo ? '' : filho.dataBatismo} 
+                            onChange={(e) => atualizarFilho(idx, 'dataBatismo', aplicarMascaraData(e.target.value))} 
+                            onBlur={(e) => !filho.batismoNaoRecordo && validarCampoEmTempoReal(`filhoDataBatismo_${idx}`, e.target.value)}
+                            className={`${inputStyle} disabled:opacity-50 ${errorsByField[`filhoDataBatismo_${idx}`] ? inputErrorStyle : ''}`} 
+                          />
+                          {errorsByField[`filhoDataBatismo_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataBatismo_${idx}`]}</span>}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* SEÇÃO 3: HISTÓRICO DE BATISMO (TITULAR) */}
+        <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
+          <div className="flex items-center gap-3 mb-5 sm:mb-6">
+            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">3</span>
             <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Histórico de Batismo</h3>
           </div>
 
@@ -884,10 +903,10 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           </div>
         </div>
 
-        {/* SEÇÃO 3: DOCUMENTAÇÕES E CONTATOS */}
+        {/* SEÇÃO 4: DOCUMENTAÇÕES E CONTATOS */}
         <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
-            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">3</span>
+            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">4</span>
             <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Documentações e Contatos</h3>
           </div>
 
@@ -955,10 +974,10 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           </div>
         </div>
 
-        {/* SEÇÃO 4: ENDEREÇO RESIDENCIAL COMPLETO */}
+        {/* SEÇÃO 5: ENDEREÇO RESIDENCIAL COMPLETO */}
         <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
-            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">4</span>
+            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">5</span>
             <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Endereço Residencial</h3>
           </div>
 
@@ -1014,12 +1033,12 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           </div>
         </div>
 
-        {/* SEÇÃO 5: MINISTÉRIOS COM SELEÇÃO MÚLTIPLA */}
+        {/* SEÇÃO 6: MINISTÉRIOS COM SELEÇÃO MÚLTIPLA */}
         {tipoFluxo === 'membro' && (
           <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/10 space-y-5 sm:space-y-6">
             <div className="flex items-center gap-3">
               <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">
-                5
+                6
               </span>
               <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">
                 Atuação Operacional e Ministérios
