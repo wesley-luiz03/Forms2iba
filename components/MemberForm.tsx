@@ -403,8 +403,16 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       }
     };
 
-    const { error: insError } = await supabase.from('membros').insert(payloadMembro);
-    if (insError) { setError(insError.message); setLoading(false); return; }
+  const { error: insError } = await supabase.from('membros').insert(payloadMembro);
+  if (insError) { 
+    if (insError.message.includes('membros_cpf_unique') || insError.code === '23505') {
+      setError('Este CPF já está cadastrado no sistema. Verifique os dados digitados ou entre em contato com a secretaria.');
+    } else {
+      setError(insError.message); 
+    }
+    setLoading(false); 
+    return; 
+  }
 
     router.push('/sucesso');
   }
