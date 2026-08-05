@@ -123,8 +123,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   const [email, setEmail] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
   
-  // Batismo Estendido
-  const [foiBatizado, setFoiBatizado] = useState('');
+  // Batismo (Titular - sem pergunta prévia de sim/não)
   const [tipoBatismo, setTipoBatismo] = useState('');
   const [igrejaBatismo, setIgrejaBatismo] = useState('');
   const [dataBatismo, setDataBatismo] = useState('');
@@ -343,6 +342,12 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       if (!validarCPF(conjugeCpf)) { setError('O CPF digitado para o cônjuge é inválido.'); return; }
     }
 
+    // Validação de Batismo do Titular
+    if (!batismoNaoRecordo && (!dataBatismo || dataBatismo.length !== 10)) {
+      setError('A data do batismo do titular é obrigatória ou marque a opção "Não me recordo".');
+      return;
+    }
+
     // Validação da seleção de Ministérios para membros
     if (tipoFluxo === 'membro') {
       if (fazParteMinisterio === 'Sim' && qualMinisterioFazParte.length === 0) {
@@ -363,7 +368,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     const supabase = createClient();
     const arrolamentoCalculado = tipoFluxo === 'membro' ? 'ADMISSÃO' : 'FREQUENTADOR';
 
-    const batismoFinal = foiBatizado === 'Não' ? 'NÃO BATIZADO' : (batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(dataBatismo));
+    const batismoFinal = batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(dataBatismo);
 
     const payloadMembro = {
       nome, genero, data_nascimento: formatarParaISO(dataNascimento),
@@ -407,33 +412,33 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
   // --- SELETOR DE FLUXO INICIAL ---
   if (!tipoFluxo) {
     return (
-      <div className="max-w-3xl mx-auto py-10 px-4 animate-fadeIn">
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-3xl shadow-2xl p-8 sm:p-12 text-center space-y-6 backdrop-blur-xl">
+      <div className="max-w-3xl mx-auto py-6 sm:py-10 px-3 sm:px-4 animate-fadeIn">
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-3xl shadow-2xl p-6 sm:p-12 text-center space-y-6 backdrop-blur-xl">
           <div className="w-16 h-1.5 bg-iba-gold mx-auto rounded-full" />
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold font-display tracking-tight text-neutral-900 dark:text-white">
+            <h2 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-neutral-900 dark:text-white">
               Seja bem-vindo(a) à 2IBA!
             </h2>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto leading-relaxed">
               Para iniciarmos, selecione como você deseja realizar o seu cadastro hoje:
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 pt-2 sm:pt-4">
             <button
               type="button"
               onClick={() => setTipoFluxo('visitante')}
-              className="group flex flex-col items-center justify-center p-8 bg-neutral-50/80 dark:bg-neutral-800/40 border-2 border-neutral-200/80 dark:border-neutral-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:border-emerald-500 rounded-2xl transition-all duration-300 transform active:scale-95 shadow-sm hover:shadow-lg text-center"
+              className="group flex flex-col items-center justify-center p-6 sm:p-8 bg-neutral-50/80 dark:bg-neutral-800/40 border-2 border-neutral-200/80 dark:border-neutral-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:border-emerald-500 rounded-2xl transition-all duration-300 transform active:scale-95 shadow-sm hover:shadow-lg text-center"
             >
-              <div className="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <h3 className="font-bold text-base text-neutral-800 dark:text-neutral-100 group-hover:text-emerald-500 transition-colors">
+              <h3 className="font-bold text-sm sm:text-base text-neutral-800 dark:text-neutral-100 group-hover:text-emerald-500 transition-colors">
                 Sou Visitante / Congregante
               </h3>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed">
+              <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 sm:mt-2 leading-relaxed">
                 Cadastro rápido e simplificado para visitantes e participantes de cultos.
               </p>
             </button>
@@ -441,17 +446,17 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
             <button
               type="button"
               onClick={() => setTipoFluxo('membro')}
-              className="group flex flex-col items-center justify-center p-8 bg-neutral-50/80 dark:bg-neutral-800/40 border-2 border-neutral-200/80 dark:border-neutral-800 hover:border-iba-blue hover:bg-iba-blue/5 dark:hover:border-iba-blue rounded-2xl transition-all duration-300 transform active:scale-95 shadow-sm hover:shadow-lg text-center"
+              className="group flex flex-col items-center justify-center p-6 sm:p-8 bg-neutral-50/80 dark:bg-neutral-800/40 border-2 border-neutral-200/80 dark:border-neutral-800 hover:border-iba-blue hover:bg-iba-blue/5 dark:hover:border-iba-blue rounded-2xl transition-all duration-300 transform active:scale-95 shadow-sm hover:shadow-lg text-center"
             >
-              <div className="w-14 h-14 bg-iba-blue/10 text-iba-blue rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-iba-blue/10 text-iba-blue rounded-2xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               </div>
-              <h3 className="font-bold text-base text-neutral-800 dark:text-neutral-100 group-hover:text-iba-blue transition-colors">
+              <h3 className="font-bold text-sm sm:text-base text-neutral-800 dark:text-neutral-100 group-hover:text-iba-blue transition-colors">
                 Sou Membro da 2IBA
               </h3>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed">
+              <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 sm:mt-2 leading-relaxed">
                 Ficha completa necessária para homologação do seu registro oficial de membresia.
               </p>
             </button>
@@ -461,24 +466,24 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
     );
   }
 
-  const inputStyle = "border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl px-4 py-3.5 text-sm outline-none focus:border-iba-blue focus:ring-2 focus:ring-iba-blue/10 transition-all duration-200 w-full placeholder:text-neutral-400";
+  const inputStyle = "border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl px-3.5 sm:px-4 py-3 sm:py-3.5 text-sm outline-none focus:border-iba-blue focus:ring-2 focus:ring-iba-blue/10 transition-all duration-200 w-full placeholder:text-neutral-400";
   const inputErrorStyle = "border-red-500 focus:border-red-500 focus:ring-red-500/10";
-  const labelStyle = "text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300";
+  const labelStyle = "text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
       {/* Banner Superior */}
-      <div className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 flex justify-between items-center text-xs shadow-sm">
+      <div className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-2xl p-3.5 sm:p-4 flex justify-between items-center text-xs shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-neutral-600 dark:text-neutral-400">
-            Você está preenchendo como: <strong className="uppercase font-bold text-iba-blue">{tipoFluxo === 'membro' ? 'Membro Ativo' : 'Visitante / Congregante'}</strong>
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-none" />
+          <span className="text-neutral-600 dark:text-neutral-400 text-[11px] sm:text-xs">
+            Modo: <strong className="uppercase font-bold text-iba-blue">{tipoFluxo === 'membro' ? 'Membro Ativo' : 'Visitante / Congregante'}</strong>
           </span>
         </div>
         <button
           type="button"
           onClick={() => setTipoFluxo(null)}
-          className="text-red-500 hover:text-red-600 font-bold hover:underline transition-colors"
+          className="text-red-500 hover:text-red-600 font-bold hover:underline transition-colors flex-none"
         >
           Trocar Modo
         </button>
@@ -487,7 +492,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       <form onSubmit={handleTriggerValidation} className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl shadow-xl overflow-hidden font-sans transition-all duration-300">
         
         {error && (
-          <div className="mx-7 mt-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 text-sm rounded-xl p-4 flex items-center gap-3">
+          <div className="mx-4 sm:mx-7 mt-5 sm:mt-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 text-xs sm:text-sm rounded-xl p-3.5 sm:p-4 flex items-center gap-3">
             <svg className="w-5 h-5 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -496,19 +501,19 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
         )}
 
         {/* SEÇÃO 1: DADOS DO TITULAR */}
-        <div className="p-7 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="w-8 h-8 rounded-xl bg-iba-blue text-white font-bold text-sm flex items-center justify-center flex-none shadow-sm">1</span>
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Dados Pessoais do Titular</h3>
+        <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
+          <div className="flex items-center gap-3 mb-5 sm:mb-6">
+            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">1</span>
+            <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Dados Pessoais do Titular</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-2 col-span-1 sm:col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div className="flex flex-col gap-1.5 sm:gap-2 col-span-1 sm:col-span-2">
               <label className={labelStyle}>Nome completo <span className="text-red-500">*</span></label>
               <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Digite seu nome completo" className={inputStyle} />
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Gênero <span className="text-red-500">*</span></label>
               <select required value={genero} onChange={(e) => setGenero(e.target.value)} className={inputStyle}>
                 <option value="">Selecione…</option>
@@ -517,7 +522,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               </select>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Data de nascimento <span className="text-red-500">*</span></label>
               <input 
                 type="text" 
@@ -532,7 +537,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               {errorsByField.dataNascimento && <span className="text-xs text-red-500 font-semibold">{errorsByField.dataNascimento}</span>}
             </div>
 
-            <div className="flex flex-col gap-2 col-span-1 sm:col-span-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2 col-span-1 sm:col-span-2">
               <label className={labelStyle}>Estado civil <span className="text-red-500">*</span></label>
               <select required value={estadoCivil} onChange={(e) => setEstadoCivil(e.target.value)} className={inputStyle}>
                 <option value="">Selecione…</option>
@@ -546,18 +551,18 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
 
           {/* FICHA DO CÔNJUGE */}
           {estadoCivil === 'Casado(a)' && (
-            <div className="mt-8 p-6 sm:p-8 bg-neutral-50/80 dark:bg-neutral-800/30 border-l-4 border-l-iba-blue border border-neutral-200/80 dark:border-neutral-800 rounded-2xl space-y-6 animate-fadeIn">
+            <div className="mt-6 sm:mt-8 p-4 sm:p-8 bg-neutral-50/80 dark:bg-neutral-800/30 border-l-4 border-l-iba-blue border border-neutral-200/80 dark:border-neutral-800 rounded-2xl space-y-4 sm:space-y-6 animate-fadeIn">
               <div className="flex items-center gap-2">
-                <h4 className="text-base font-bold text-iba-blue tracking-tight">Ficha Cadastral do Cônjuge (Novo Cadastro Interligado)</h4>
+                <h4 className="text-sm sm:text-base font-bold text-iba-blue tracking-tight">Ficha Cadastral do Cônjuge (Novo Cadastro Interligado)</h4>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="flex flex-col gap-2 col-span-1 sm:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                <div className="flex flex-col gap-1.5 sm:gap-2 col-span-1 sm:col-span-2">
                   <label className={labelStyle}>Nome Completo do Cônjuge <span className="text-red-500">*</span></label>
                   <input type="text" required value={conjugeNome} onChange={(e) => setConjugeNome(e.target.value)} placeholder="Nome completo do esposo(a)" className={inputStyle} />
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   <label className={labelStyle}>CPF do Cônjuge <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
@@ -571,7 +576,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                   {errorsByField.conjugeCpf && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeCpf}</span>}
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   <label className={labelStyle}>Situação Eclesiástica dela(e) <span className="text-red-500">*</span></label>
                   <select required value={conjugeArrolamento} onChange={(e) => setConjugeArrolamento(e.target.value)} className={inputStyle}>
                     <option value="">Selecione…</option>
@@ -580,7 +585,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   <label className={labelStyle}>Gênero do Cônjuge <span className="text-red-500">*</span></label>
                   <select required value={conjugeGenero} onChange={(e) => setConjugeGenero(e.target.value)} className={inputStyle}>
                     <option value="">Selecione…</option>
@@ -589,7 +594,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   <label className={labelStyle}>Data de Nascimento do Cônjuge <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
@@ -603,7 +608,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                   {errorsByField.conjugeNascimento && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeNascimento}</span>}
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   <label className={labelStyle}>Celular do Cônjuge <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
@@ -617,7 +622,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                   {errorsByField.conjugeCelular && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeCelular}</span>}
                 </div>
 
-                <div className="flex flex-col gap-2 col-span-1 sm:col-span-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2 col-span-1 sm:col-span-2">
                   <label className={labelStyle}>E-mail do Cônjuge <span className="text-red-500">*</span></label>
                   <input 
                     type="email" 
@@ -632,7 +637,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                 </div>
                 
                 {/* Batismo do Cônjuge */}
-                <div className="flex flex-col gap-2 col-span-1 sm:col-span-2 border-t border-neutral-200 dark:border-neutral-700 pt-5 mt-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2 col-span-1 sm:col-span-2 border-t border-neutral-200 dark:border-neutral-700 pt-4 mt-2">
                   <label className={labelStyle}>O Cônjuge já foi batizado? <span className="text-red-500">*</span></label>
                   <select required value={conjugeBatizado} onChange={(e) => setConjugeBatizado(e.target.value)} className={inputStyle}>
                     <option value="">Selecione…</option>
@@ -643,7 +648,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
 
                 {conjugeBatizado === 'Sim' && (
                   <>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1.5 sm:gap-2">
                       <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
                       <select required value={conjugeTipoBatismo} onChange={(e) => setConjugeTipoBatismo(e.target.value)} className={inputStyle}>
                         <option value="">Selecione…</option>
@@ -652,17 +657,17 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                       </select>
                     </div>
 
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1.5 sm:gap-2">
                       <label className={labelStyle}>Igreja do Batismo <span className="text-red-500">*</span></label>
                       <input type="text" required value={conjugeIgrejaBatismo} onChange={(e) => setConjugeIgrejaBatismo(e.target.value)} placeholder="Nome da igreja" className={inputStyle} />
                     </div>
 
-                    <div className="flex flex-col gap-2 col-span-1 sm:col-span-2">
-                      <div className="flex justify-between items-center">
+                    <div className="flex flex-col gap-1.5 sm:gap-2 col-span-1 sm:col-span-2">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
                         <label className={labelStyle}>
                           Data do Batismo do Cônjuge {!conjugeBatismoNaoRecordo && <span className="text-red-500">*</span>}
                         </label>
-                        <label className="text-xs text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                        <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
                           <input type="checkbox" checked={conjugeBatismoNaoRecordo} onChange={(e) => setConjugeBatismoNaoRecordo(e.target.checked)} className="rounded text-iba-blue" />
                           Não me recordo
                         </label>
@@ -684,7 +689,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                 )}
               </div>
 
-              <div className="flex flex-col gap-2 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+              <div className="flex flex-col gap-1.5 sm:gap-2 pt-4 border-t border-neutral-200 dark:border-neutral-700">
                 <label className={labelStyle}>Possuem filhos? <span className="text-red-500">*</span></label>
                 <select required value={haFilhos} onChange={(e) => setHaFilhos(e.target.value)} className={inputStyle}>
                   <option value="">Selecione…</option>
@@ -697,14 +702,14 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               {haFilhos === 'Sim' && (
                 <div className="space-y-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
                   <div className="flex justify-between items-center">
-                    <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Filhos / Dependentes</h5>
-                    <button type="button" onClick={adicionarFilho} className="bg-iba-blue hover:bg-iba-dark text-white text-xs font-bold px-3.5 py-2 rounded-lg transition-all shadow-sm transform active:scale-95">
+                    <h5 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500">Filhos / Dependentes</h5>
+                    <button type="button" onClick={adicionarFilho} className="bg-iba-blue hover:bg-iba-dark text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg transition-all shadow-sm active:scale-95">
                       + Adicionar Filho
                     </button>
                   </div>
 
                   {filhos.map((filho, idx) => (
-                    <div key={idx} className="p-5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-4 shadow-sm animate-fadeIn">
+                    <div key={idx} className="p-4 sm:p-5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-3.5 sm:space-y-4 shadow-sm animate-fadeIn">
                       <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
                         <span className="text-xs font-bold text-iba-blue">Filho #{idx + 1}</span>
                         {filhos.length > 1 && (
@@ -712,7 +717,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                         <div className="flex flex-col gap-1.5 col-span-1 sm:col-span-2">
                           <label className={labelStyle}>Nome do Filho <span className="text-red-500">*</span></label>
                           <input type="text" required value={filho.nome} onChange={(e) => atualizarFilho(idx, 'nome', e.target.value)} placeholder="Nome completo" className={inputStyle} />
@@ -794,7 +799,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                                 <label className={labelStyle}>
                                   Data do Batismo {!filho.batismoNaoRecordo && <span className="text-red-500">*</span>}
                                 </label>
-                                <label className="text-xs text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                                <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
                                   <input type="checkbox" checked={filho.batismoNaoRecordo} onChange={(e) => atualizarFilho(idx, 'batismoNaoRecordo', e.target.checked)} className="rounded text-iba-blue" />
                                   Não me recordo
                                 </label>
@@ -823,76 +828,63 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
           )}
         </div>
 
-        {/* SEÇÃO 2: HISTÓRICO DE BATISMO (TITULAR) */}
-        <div className="p-7 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="w-8 h-8 rounded-xl bg-iba-blue text-white font-bold text-sm flex items-center justify-center flex-none shadow-sm">2</span>
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Histórico de Batismo</h3>
+        {/* SEÇÃO 2: HISTÓRICO DE BATISMO (DIRETO E SEM PERGUNTA SIM/NÃO PARA MEMBROS) */}
+        <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
+          <div className="flex items-center gap-3 mb-5 sm:mb-6">
+            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">2</span>
+            <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Histórico de Batismo</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-2 col-span-1 sm:col-span-2">
-              <label className={labelStyle}>Você já foi batizado? <span className="text-red-500">*</span></label>
-              <select required value={foiBatizado} onChange={(e) => setFoiBatizado(e.target.value)} className={inputStyle}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
+              <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
+              <select required value={tipoBatismo} onChange={(e) => setTipoBatismo(e.target.value)} className={inputStyle}>
                 <option value="">Selecione…</option>
-                <option value="Sim">Sim</option>
-                <option value="Não">Não</option>
+                <option value="Imersão">Imersão</option>
+                <option value="Aspersão">Aspersão</option>
               </select>
             </div>
 
-            {foiBatizado === 'Sim' && (
-              <>
-                <div className="flex flex-col gap-2">
-                  <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
-                  <select required value={tipoBatismo} onChange={(e) => setTipoBatismo(e.target.value)} className={inputStyle}>
-                    <option value="">Selecione…</option>
-                    <option value="Imersão">Imersão</option>
-                    <option value="Aspersão">Aspersão</option>
-                  </select>
-                </div>
+            <div className="flex flex-col gap-1.5 sm:gap-2">
+              <label className={labelStyle}>Nome da Igreja do Batismo <span className="text-red-500">*</span></label>
+              <input type="text" required value={igrejaBatismo} onChange={(e) => setIgrejaBatismo(e.target.value)} placeholder="Onde você foi batizado" className={inputStyle} />
+            </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className={labelStyle}>Nome da Igreja do Batismo <span className="text-red-500">*</span></label>
-                  <input type="text" required value={igrejaBatismo} onChange={(e) => setIgrejaBatismo(e.target.value)} placeholder="Onde você foi batizado" className={inputStyle} />
-                </div>
-
-                <div className="flex flex-col gap-2 col-span-1 sm:col-span-2">
-                  <div className="flex justify-between items-center">
-                    <label className={labelStyle}>
-                      Data do Batismo {!batismoNaoRecordo && <span className="text-red-500">*</span>}
-                    </label>
-                    <label className="text-xs text-neutral-500 flex items-center gap-1.5 cursor-pointer">
-                      <input type="checkbox" checked={batismoNaoRecordo} onChange={(e) => setBatismoNaoRecordo(e.target.checked)} className="rounded text-iba-blue" />
-                      Não me recordo
-                    </label>
-                  </div>
-                  <input 
-                    type="text" 
-                    required={!batismoNaoRecordo} 
-                    disabled={batismoNaoRecordo} 
-                    maxLength={10} 
-                    placeholder={batismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
-                    value={batismoNaoRecordo ? '' : dataBatismo} 
-                    onChange={(e) => setDataBatismo(aplicarMascaraData(e.target.value))} 
-                    onBlur={(e) => !batismoNaoRecordo && validarCampoEmTempoReal('dataBatismo', e.target.value)}
-                    className={`${inputStyle} disabled:opacity-50 ${errorsByField.dataBatismo ? inputErrorStyle : ''}`} 
-                  />
-                  {errorsByField.dataBatismo && <span className="text-xs text-red-500 font-semibold">{errorsByField.dataBatismo}</span>}
-                </div>
-              </>
-            )}
+            <div className="flex flex-col gap-1.5 sm:gap-2 col-span-1 sm:col-span-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
+                <label className={labelStyle}>
+                  Data do Batismo {!batismoNaoRecordo && <span className="text-red-500">*</span>}
+                </label>
+                <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={batismoNaoRecordo} onChange={(e) => setBatismoNaoRecordo(e.target.checked)} className="rounded text-iba-blue" />
+                  Não me recordo
+                </label>
+              </div>
+              <input 
+                type="text" 
+                required={!batismoNaoRecordo} 
+                disabled={batismoNaoRecordo} 
+                maxLength={10} 
+                placeholder={batismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
+                value={batismoNaoRecordo ? '' : dataBatismo} 
+                onChange={(e) => setDataBatismo(aplicarMascaraData(e.target.value))} 
+                onBlur={(e) => !batismoNaoRecordo && validarCampoEmTempoReal('dataBatismo', e.target.value)}
+                className={`${inputStyle} disabled:opacity-50 ${errorsByField.dataBatismo ? inputErrorStyle : ''}`} 
+              />
+              {errorsByField.dataBatismo && <span className="text-xs text-red-500 font-semibold">{errorsByField.dataBatismo}</span>}
+            </div>
           </div>
         </div>
 
         {/* SEÇÃO 3: DOCUMENTAÇÕES E CONTATOS */}
-        <div className="p-7 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="w-8 h-8 rounded-xl bg-iba-blue text-white font-bold text-sm flex items-center justify-center flex-none shadow-sm">3</span>
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Documentações e Contatos</h3>
+        <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
+          <div className="flex items-center gap-3 mb-5 sm:mb-6">
+            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">3</span>
+            <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Documentações e Contatos</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>
                 CPF <span className="text-red-500">*</span>
               </label>
@@ -908,8 +900,8 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               {errorsByField.cpf && <span className="text-xs text-red-500 font-semibold">{errorsByField.cpf}</span>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+              <div className="flex flex-col gap-1.5 sm:gap-2">
                 <label className={labelStyle}>RG (Opcional)</label>
                 <input 
                   type="text" 
@@ -919,13 +911,13 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                   className={inputStyle} 
                 />
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5 sm:gap-2">
                 <label className={labelStyle}>Órgão Expedidor</label>
                 <input type="text" placeholder="Ex: SDS/PE" value={orgaoExpedidor} onChange={(e) => setOrgaoExpedidor(e.target.value)} className={inputStyle} />
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Celular <span className="text-red-500">*</span></label>
               <input 
                 type="text" 
@@ -939,7 +931,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               {errorsByField.celular && <span className="text-xs text-red-500 font-semibold">{errorsByField.celular}</span>}
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>E-mail <span className="text-red-500">*</span></label>
               <input 
                 type="email" 
@@ -956,14 +948,14 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
         </div>
 
         {/* SEÇÃO 4: ENDEREÇO RESIDENCIAL COMPLETO */}
-        <div className="p-7 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="w-8 h-8 rounded-xl bg-iba-blue text-white font-bold text-sm flex items-center justify-center flex-none shadow-sm">4</span>
-            <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">Endereço Residencial</h3>
+        <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800">
+          <div className="flex items-center gap-3 mb-5 sm:mb-6">
+            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">4</span>
+            <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Endereço Residencial</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>CEP <span className="text-red-500">*</span></label>
               <input 
                 type="text" 
@@ -977,56 +969,56 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               {errorsByField.cep && <span className="text-xs text-red-500 font-semibold">{errorsByField.cep}</span>}
             </div>
 
-            <div className="flex flex-col gap-2 sm:col-span-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2 sm:col-span-2">
               <label className={labelStyle}>Logradouro / Rua <span className="text-red-500">*</span></label>
               <input type="text" required value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Sua rua ou avenida" className={inputStyle} />
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Número <span className="text-red-500">*</span></label>
               <input type="text" required value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="Nº da casa" className={inputStyle} />
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Complemento</label>
               <input type="text" value={complemento} onChange={(e) => setComplemento(e.target.value)} placeholder="Apto, Bloco..." className={inputStyle} />
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Bairro <span className="text-red-500">*</span></label>
               <input type="text" required value={bairro} onChange={(e) => setBairro(e.target.value)} placeholder="Seu bairro" className={inputStyle} />
             </div>
 
-            <div className="flex flex-col gap-2 sm:col-span-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2 sm:col-span-2">
               <label className={labelStyle}>Cidade <span className="text-red-500">*</span></label>
               <input type="text" required value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Sua cidade" className={inputStyle} />
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Estado (UF) <span className="text-red-500">*</span></label>
               <input type="text" required maxLength={2} value={uf} onChange={(e) => setUf(e.target.value)} placeholder="PE" className={`${inputStyle} uppercase`} />
             </div>
 
-            <div className="flex flex-col gap-2 sm:col-span-3">
+            <div className="flex flex-col gap-1.5 sm:gap-2 sm:col-span-3">
               <label className={labelStyle}>Ponto de Referência</label>
               <input type="text" value={pontoReferencia} onChange={(e) => setPontoReferencia(e.target.value)} placeholder="Próximo a mercado, praça..." className={inputStyle} />
             </div>
           </div>
         </div>
 
-        {/* SEÇÃO 5: MINISTÉRIOS COM SELEÇÃO MÚLTIPLA (SOMENTE PARA FLUXO MEMBRO) */}
+        {/* SEÇÃO 5: MINISTÉRIOS COM SELEÇÃO MÚLTIPLA */}
         {tipoFluxo === 'membro' && (
-          <div className="p-7 sm:p-9 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/10 space-y-6">
+          <div className="p-5 sm:p-9 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/10 space-y-5 sm:space-y-6">
             <div className="flex items-center gap-3">
-              <span className="w-8 h-8 rounded-xl bg-iba-blue text-white font-bold text-sm flex items-center justify-center flex-none shadow-sm">
+              <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-blue text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">
                 5
               </span>
-              <h3 className="text-neutral-900 dark:text-white text-lg font-bold tracking-tight">
+              <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">
                 Atuação Operacional e Ministérios
               </h3>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>
                 Você faz parte de algum ministério da 2IBA? <span className="text-red-500">*</span>
               </label>
@@ -1047,20 +1039,19 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               </select>
             </div>
 
-            {/* CASO SIM: Múltipla escolha dos ministérios que faz parte */}
             {fazParteMinisterio === 'Sim' && (
               <div className="space-y-3 animate-fadeIn border-t border-neutral-200 dark:border-neutral-700 pt-4">
                 <label className={labelStyle}>
                   De quais ministérios você participa atualmente? (Selecione um ou mais) <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 pt-2">
                   {MINISTERIOS.map((m) => {
                     const selecionado = qualMinisterioFazParte.includes(m);
                     return (
                       <label 
                         key={m} 
                         onClick={() => toggleMinisterio(m, qualMinisterioFazParte, setQualMinisterioFazParte)}
-                        className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer text-xs font-semibold transition-all select-none ${
+                        className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border cursor-pointer text-xs font-semibold transition-all select-none ${
                           selecionado 
                             ? 'border-iba-blue bg-iba-blue/10 text-iba-blue dark:bg-iba-blue/20 dark:text-white' 
                             : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:border-neutral-300'
@@ -1070,7 +1061,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                           type="checkbox" 
                           checked={selecionado} 
                           readOnly 
-                          className="rounded text-iba-blue focus:ring-iba-blue w-4 h-4" 
+                          className="rounded text-iba-blue focus:ring-iba-blue w-4 h-4 flex-none" 
                         />
                         <span>{m}</span>
                       </label>
@@ -1080,10 +1071,9 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
               </div>
             )}
 
-            {/* CASO NÃO: Pergunta se gostaria de participar */}
             {fazParteMinisterio === 'Não' && (
-              <div className="space-y-5 animate-fadeIn border-t border-neutral-200 dark:border-neutral-700 pt-4">
-                <div className="flex flex-col gap-2">
+              <div className="space-y-4 sm:space-y-5 animate-fadeIn border-t border-neutral-200 dark:border-neutral-700 pt-4">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   <label className={labelStyle}>
                     Você deseja fazer parte de algum ministério? <span className="text-red-500">*</span>
                   </label>
@@ -1102,20 +1092,19 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                   </select>
                 </div>
 
-                {/* CASO SIM: Múltipla escolha dos ministérios que gostaria de integrar */}
                 {querParticiparMinisterio === 'Sim' && (
                   <div className="space-y-3 animate-fadeIn pt-2">
                     <label className={labelStyle}>
                       Quais ministérios você gostaria de integrar? (Selecione um ou mais) <span className="text-red-500">*</span>
                     </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 pt-2">
                       {MINISTERIOS.map((m) => {
                         const selecionado = qualMinisterioQuerParticipar.includes(m);
                         return (
                           <label 
                             key={m} 
                             onClick={() => toggleMinisterio(m, qualMinisterioQuerParticipar, setQualMinisterioQuerParticipar)}
-                            className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer text-xs font-semibold transition-all select-none ${
+                            className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border cursor-pointer text-xs font-semibold transition-all select-none ${
                               selecionado 
                                 ? 'border-iba-blue bg-iba-blue/10 text-iba-blue dark:bg-iba-blue/20 dark:text-white' 
                                 : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:border-neutral-300'
@@ -1125,7 +1114,7 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                               type="checkbox" 
                               checked={selecionado} 
                               readOnly 
-                              className="rounded text-iba-blue focus:ring-iba-blue w-4 h-4" 
+                              className="rounded text-iba-blue focus:ring-iba-blue w-4 h-4 flex-none" 
                             />
                             <span>{m}</span>
                           </label>
@@ -1140,12 +1129,12 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
         )}
 
         {/* TERMO DE AUTORIZAÇÃO E CONSENTIMENTO COMPLETO (LGPD) */}
-        <div className="p-7 sm:p-9 bg-neutral-50/80 dark:bg-neutral-800/20 border-b border-neutral-100 dark:border-neutral-800 space-y-4">
-          <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider flex items-center gap-2 pb-1 border-b border-neutral-200 dark:border-neutral-700">
+        <div className="p-5 sm:p-9 bg-neutral-50/80 dark:bg-neutral-800/20 border-b border-neutral-100 dark:border-neutral-800 space-y-4">
+          <h4 className="text-xs sm:text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider flex items-center gap-2 pb-1 border-b border-neutral-200 dark:border-neutral-700">
             Termo de Autorização e Consentimento (LGPD - Lei nº 13.709/2018)
           </h4>
           
-          <div className="max-h-[160px] overflow-y-auto text-xs text-neutral-600 dark:text-neutral-400 space-y-3 pr-3 leading-relaxed bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 rounded-xl shadow-inner">
+          <div className="max-h-[160px] overflow-y-auto text-[11px] sm:text-xs text-neutral-600 dark:text-neutral-400 space-y-2.5 sm:space-y-3 pr-2 sm:pr-3 leading-relaxed bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-3.5 sm:p-4 rounded-xl shadow-inner">
             <p>
               Em conformidade com a <strong>Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018)</strong>, ao confirmar este cadastro, você autoriza expressamente que a <strong>2ª Igreja Batista de Areias (2IBA)</strong> realize a coleta e o tratamento dos seus dados pessoais e dos membros do seu núcleo familiar para fins exclusivos de gestão eclesiástica, atualização do rol de membros no sistema Eklesia, relatórios estatísticos internos, assistência pastoral e comunicações oficiais de atividades e cultos da igreja.
             </p>
@@ -1160,29 +1149,29 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
             </p>
           </div>
 
-          <div className="flex items-start gap-3 pt-2">
+          <div className="flex items-start gap-3 pt-1">
             <input 
               type="checkbox" 
               id="aceitaTermosLgpd" 
               checked={aceitaTermosLgpd} 
               onChange={(e) => setAceitaTermosLgpd(e.target.checked)} 
-              className="mt-1 w-4 h-4 rounded text-iba-blue focus:ring-iba-blue cursor-pointer" 
+              className="mt-0.5 w-4 h-4 rounded text-iba-blue focus:ring-iba-blue cursor-pointer flex-none" 
             />
-            <label htmlFor="aceitaTermosLgpd" className="text-xs text-neutral-700 dark:text-neutral-300 select-none cursor-pointer leading-relaxed">
+            <label htmlFor="aceitaTermosLgpd" className="text-[11px] sm:text-xs text-neutral-700 dark:text-neutral-300 select-none cursor-pointer leading-relaxed">
               Li o termo acima e <b>autorizo expressamente</b> a 2ª Igreja Batista de Areias a tratar os meus dados pessoais e de minha família em total conformidade com a LGPD.
             </label>
           </div>
         </div>
 
         {/* BOTÃO FINALIZAR CADASTRO */}
-        <div className="p-7 sm:p-9 bg-neutral-50 dark:bg-neutral-800/40 flex justify-end border-t border-neutral-100 dark:border-neutral-800">
+        <div className="p-5 sm:p-9 bg-neutral-50 dark:bg-neutral-800/40 flex justify-end border-t border-neutral-100 dark:border-neutral-800">
           <button
             type="submit"
             disabled={loading}
-            className="bg-iba-blue hover:bg-iba-dark text-white font-bold text-sm px-9 py-4 rounded-xl shadow-lg shadow-iba-blue/10 transition-all duration-300 transform active:scale-95 disabled:opacity-50"
+            className="w-full sm:w-auto bg-iba-blue hover:bg-iba-dark text-white font-bold text-sm px-9 py-4 rounded-xl shadow-lg shadow-iba-blue/10 transition-all duration-300 transform active:scale-95 disabled:opacity-50"
           >
             {loading ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -1197,11 +1186,11 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
       </form>
 
       {/* FAQ ACCORDION INTERATIVO */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl p-6 sm:p-8 shadow-md space-y-5 transition-all duration-300">
-        <h4 className="text-base font-bold text-neutral-900 dark:text-white pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-2">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl p-5 sm:p-8 shadow-md space-y-4 sm:space-y-5 transition-all duration-300">
+        <h4 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white pb-2.5 sm:pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-2">
           Dúvidas e Perguntas Frequentes
         </h4>
-        <div className="space-y-3">
+        <div className="space-y-2.5 sm:space-y-3">
           {FAQS.map((faq) => {
             const isAberto = faqAberto === faq.id;
             return (
@@ -1209,17 +1198,17 @@ export default function MemberForm({ customFields }: { customFields: any[] }) {
                 <button
                   type="button"
                   onClick={() => setFaqAberto(isAberto ? null : faq.id)}
-                  className="w-full text-left p-4 sm:p-5 flex justify-between items-center gap-4 hover:bg-neutral-100/60 dark:hover:bg-neutral-800/40 transition-colors"
+                  className="w-full text-left p-3.5 sm:p-5 flex justify-between items-center gap-3 hover:bg-neutral-100/60 dark:hover:bg-neutral-800/40 transition-colors"
                 >
                   <span className="font-bold text-xs sm:text-sm text-neutral-800 dark:text-neutral-200">{faq.pergunta}</span>
-                  <span className="p-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-500 flex-none shadow-sm">
+                  <span className="p-1.5 sm:p-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-500 flex-none shadow-sm">
                     <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${isAberto ? 'rotate-180 text-iba-blue' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
                     </svg>
                   </span>
                 </button>
                 {isAberto && (
-                  <div className="px-5 pb-5 text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed border-t border-neutral-100 dark:border-neutral-800/60 pt-4 animate-fadeIn">
+                  <div className="px-4 pb-4 sm:px-5 sm:pb-5 text-[11px] sm:text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed border-t border-neutral-100 dark:border-neutral-800/60 pt-3 sm:pt-4 animate-fadeIn">
                     {faq.resposta}
                   </div>
                 )}
