@@ -24,7 +24,7 @@ export default async function HomePage() {
             2ª Igreja Batista de Areias
           </span>
           <h1 className="text-3xl font-bold font-display tracking-tight text-neutral-900 dark:text-white">
-            Cadastro de Membresia
+            Recadastro de Membresia
           </h1>
         </div>
 
@@ -37,7 +37,7 @@ export default async function HomePage() {
             Atualize seus dados
           </h2>
           <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1 leading-relaxed">
-            Preencha suas informações com calma — leva poucos minutos. Esses dados serão usados para organizar o cadastro de membros da igreja no sistema Eklesia.
+            Preencha suas informações com calma, leva poucos minutos. Esses dados serão usados para organizar o cadastro de membros da igreja no sistema Eklesia.
           </p>
         </div>
 

@@ -1,392 +1,517 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { createClient } from '@/lib/supabase/client';
+import { formatarMembrosParaExcel, Membro } from '@/lib/eklesiaColumns';
 
-interface Membro {
-  id: string;
-  nome: string;
-  genero: string;
-  celular: string;
-  cidade: string;
-  uf: string;
-  email: string;
-  cpf: string;
-  rg: string;
-  data_nascimento: string;
-  estado_civil: string;
-  escolaridade: string;
-  tipo_sanguineo: string;
-  naturalidade: string;
-  nome_mae: string;
-  nome_pai: string;
-  data_batismo: string;
-  created_at: string;
-}
+export default function AdminDashboardClient({ membrosIniciais }: { membrosIniciais?: Membro[] }) {
+  const [membros, setMembros] = useState<Membro[]>(membrosIniciais || []);
+  const [carregando, setCarregando] = useState(true);
+  const [busca, setBusca] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('todos');
+  const [atualizando, setAtualizando] = useState(false);
+  const [temNovosCadastros, setTemNovosCadastros] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-export default function AdminDashboardClient({ 
-  initialMembros, 
-  customFields, 
-  config 
-}: { 
-  initialMembros: Membro[]; 
-  customFields: any[]; 
-  config: any; 
-}) {
-  const router = useRouter();
-  const [search, setSearch] = useState('');
-  const [genderFilter, setGenderFilter] = useState('');
+  // Estado do Pop-up / Toast
+  const [toastNotificacao, setToastNotificacao] = useState<string | null>(null);
+
+  // Estados de Seleção para Exclusão
   const [selecionados, setSelecionados] = useState<string[]>([]);
-  const [loadingExclusao, setLoadingExclusao] = useState(false);
+  const [modalExclusaoAberto, setModalExclusaoAberto] = useState(false);
+  const [membroParaExcluirUnico, setMembroParaExcluirUnico] = useState<Membro | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
 
-  // Filtros em tempo real
-  const filtrados = initialMembros.filter((m) => {
-    const bateNome = m.nome?.toLowerCase().includes(search.toLowerCase());
-    const bateGenero = genderFilter === '' || m.genero === genderFilter;
-    return bateNome && bateGenero;
-  });
+  // TIMEOUT DE OCIOSIDADE (10 MINUTOS)
+  const tempoInatividadeRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Alvos de exportação (se houver itens marcados, exporta os selecionados. Se não, exporta todos os filtrados da tela)
-  const dadosParaExportar = selecionados.length > 0 
-    ? initialMembros.filter(m => selecionados.includes(m.id)) 
-    : filtrados;
+  // CARREGAMENTO INICIAL DOS DADOS NO NAVEGADOR
+  useEffect(() => {
+    setMounted(true);
+    
+    const carregarMembrosIniciais = async () => {
+      setCarregando(true);
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('membros')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  // Contadores
-  const total = initialMembros.length;
-  const masculino = initialMembros.filter((m) => m.genero === 'Masculino').length;
-  const feminino = initialMembros.filter((m) => m.genero === 'Feminino').length;
-  const semEmail = initialMembros.filter((m) => !m.email || m.email.trim() === '').length;
-
-  // --- MOTOR 1: EXPORTAÇÃO XLSX (MODELO PLANILHA PADRÃO EKLESIA / 2IBA) ---
-  const exportarXLSX = () => {
-    if (dadosParaExportar.length === 0) return alert('Nenhum cadastro disponível para exportar.');
-
-    // Mapeamento estruturado de colunas seguindo o dicionário de dados do Eklesia adaptado à 2IBA
-    const rows = dadosParaExportar.map(m => ({
-      'Nome Completo': m.nome,
-      'Gênero': m.genero,
-      'Data de Nascimento': m.data_nascimento ? new Date(m.data_nascimento).toLocaleDateString('pt-BR') : '',
-      'Estado Civil': m.estado_civil,
-      'CPF': m.cpf,
-      'RG': m.rg,
-      'Celular': m.celular,
-      'E-mail': m.email,
-      'Cidade Natal': m.naturalidade,
-      'Nome da Mãe': m.nome_mae,
-      'Nome do Pai': m.nome_pai,
-      'Data do Batismo': m.data_batismo,
-      'Escolaridade': m.escolaridade,
-      'Tipo Sanguíneo': m.tipo_sanguineo || 'Não Informado',
-      'Igreja': config.igreja,
-      'Situação de Arrolamento': config.arrolamento,
-      'Motivo do Arrolamento': config.motivo
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Membros 2IBA');
-
-    // Auto-ajuste de largura de colunas para a planilha não ficar cortada
-    const maxProps = Object.keys(rows[0]);
-    worksheet['!cols'] = maxProps.map(() => ({ wch: 22 }));
-
-    XLSX.writeFile(workbook, `2iba_membros_eklesia_${new Date().toISOString().slice(0,10)}.xlsx`);
-  };
-
-// --- MOTOR 2: EXPORTAÇÃO PDF COMPACTO EM TABELA HORIZONTAL PARA LARGA ESCALA ---
-  const exportarPDF = () => {
-    if (dadosParaExportar.length === 0) return alert('Nenhum cadastro disponível para exportar.');
-
-    // Mantemos em modo Paisagem (Landscape) para ganhar o máximo de espaço horizontal útil (297mm)
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-    // 1. CONFIGURAÇÃO DO CABEÇALHO DA PÁGINA (Aparecerá automaticamente em todas as páginas)
-    const renderHeader = () => {
-      doc.setFillColor(11, 27, 38); // #0B1B26 (iba-dark)
-      doc.rect(0, 0, 297, 24, 'F');
-
-      doc.setTextColor(237, 196, 114); // #EDC472 (iba-gold)
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(16);
-      doc.text('2ª IGREJA BATISTA DE AREIAS', 12, 10);
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.text('Relatório Geral Consolidado de Cadastro — Sistema Eklesia', 12, 17);
-      doc.text(`Emissão: ${new Date().toLocaleDateString('pt-BR')} • Total: ${dadosParaExportar.length} registro(s)`, 225, 17);
-
-      // Linha dourada divisória sutil
-      doc.setDrawColor(237, 196, 114);
-      doc.setLineWidth(0.5);
-      doc.line(0, 24, 297, 24);
+      if (!error && data) {
+        setMembros(data);
+      }
+      setCarregando(false);
     };
 
-    renderHeader();
+    carregarMembrosIniciais();
 
-    // 2. ESTRUTURAÇÃO DE TODOS OS CAMPOS ESSENCIAIS EM COLUNAS COMPACTAS
-    // Definimos títulos diretos e curtos para salvar preciosos milímetros na tela
-    const headers = [[
-      'Nome do Membro', 
-      'Gênero', 
-      'CPF / RG', 
-      'Contato / Celular', 
-      'E-mail', 
-      'Cidade/UF', 
-      'Batismo', 
-      'Escolaridade / Sangue'
-    ]];
+    // Timer de inatividade (10 min)
+    const TEMPO_OCIOSIDADE_MS = 3 * 60 * 1000;
+    const deslogarPorInatividade = () => {
+      document.cookie = "dev_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      window.location.href = '/admin/login';
+    };
 
-    // Mapeamos os registros concatenando dados semelhantes para reduzir o número de colunas
-    const body = dadosParaExportar.map(m => {
-      const cpfRg = `${m.cpf || '-'}\nRG: ${m.rg || '-'}`;
-      const cidadeUf = m.cidade && m.uf ? `${m.cidade}-${m.uf}` : '-';
-      const escolaridadeSangue = `${m.escolaridade || '-'}\nSangue: ${m.tipo_sanguineo || 'Não Inf.'}`;
-      
-      return [
-        m.nome,
-        m.genero || '-',
-        cpfRg,
-        m.celular || '-',
-        m.email || '-',
-        cidadeUf,
-        m.data_batismo || '-',
-        escolaridadeSangue
-      ];
-    });
+    const resetarTimer = () => {
+      if (tempoInatividadeRef.current) clearTimeout(tempoInatividadeRef.current);
+      tempoInatividadeRef.current = setTimeout(deslogarPorInatividade, TEMPO_OCIOSIDADE_MS);
+    };
 
-    // 3. RENDERIZAÇÃO DA TABELA INTELIGENTE DE ALTA DENSIDADE (jsPDF-AutoTable)
-    autoTable(doc, {
-      startY: 28,
-      head: headers,
-      body: body,
-      theme: 'grid',
-      // 'linebreak' força o texto a quebrar linha dentro da célula se não couber horizontalmente
-      styles: { 
-        fontSize: 8, 
-        textColor: [40, 40, 40], 
-        cellPadding: 1.8, 
-        overflow: 'linebreak' 
-      },
-      headStyles: { 
-        fillColor: [11, 27, 38], 
-        textColor: [237, 196, 114], 
-        fontSize: 8.5, 
-        fontStyle: 'bold',
-        halign: 'left'
-      },
-      alternateRowStyles: { 
-        fillColor: [249, 250, 251] 
-      },
-      // Configuração milimétrica da largura de cada coluna para equilibrar a tabela
-      columnStyles: {
-        0: { cellWidth: 55, fontStyle: 'bold' }, // Nome ganha mais espaço
-        1: { cellWidth: 18 },                    // Gênero
-        2: { cellWidth: 32 },                    // CPF / RG empilhados
-        3: { cellWidth: 30 },                    // Celular
-        4: { cellWidth: 48 },                    // E-mail quebra linha se for longo
-        5: { cellWidth: 32 },                    // Cidade/UF
-        6: { cellWidth: 28 },                    // Batismo
-        7: { cellWidth: 30 },                    // Escolaridade / Sangue empilhados
-      },
-      margin: { left: 12, right: 12, bottom: 15 },
-      // Lógica para repetir o cabeçalho oficial e adicionar o rodapé caso mude de página
-      didDrawPage: (data) => {
-        if (data.pageNumber > 1) {
-          renderHeader();
-        }
-        // Rodapé flutuante por página
-        doc.setFontSize(7.5);
-        doc.setTextColor(150, 150, 150);
-        doc.text('2ª Igreja Batista de Areias • Secretaria Interna', 12, 287);
-        doc.text(`Página ${data.pageNumber}`, 275, 287);
+    const eventos = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    eventos.forEach((evt) => window.addEventListener(evt, resetarTimer));
+
+    resetarTimer();
+
+    return () => {
+      if (tempoInatividadeRef.current) clearTimeout(tempoInatividadeRef.current);
+      eventos.forEach((evt) => window.removeEventListener(evt, resetarTimer));
+    };
+  }, []);
+
+  // MONITORAMENTO AUTOMÁTICO DE NOVOS CADASTROS (15s)
+  useEffect(() => {
+    const checarNovosCadastros = async () => {
+      const supabase = createClient();
+      const { count, error } = await supabase
+        .from('membros')
+        .select('*', { count: 'exact', head: true });
+
+      if (!error && count !== null && count > membros.length) {
+        setTemNovosCadastros(true);
       }
-    });
+    };
 
-    doc.save(`2iba_membros_relatorio_${new Date().toISOString().slice(0, 10)}.pdf`);
-  };  
-  
-  // --- MOTOR 3: EXPORTAÇÃO SQL DE DESENVOLVEDOR (INSERT STATEMENT) ---
-  const exportarSQL = () => {
-    if (dadosParaExportar.length === 0) return alert('Nenhum cadastro disponível para exportar.');
+    const interval = setInterval(checarNovosCadastros, 15000);
+    return () => clearInterval(interval);
+  }, [membros.length]);
 
-    let sqlDump = `-- 2ª Igreja Batista de Areias - Dump de Cadastros\n`;
-    sqlDump += `-- Gerado em: ${new Date().toLocaleString('pt-BR')}\n\n`;
+  // FUNÇÃO MANUAL DE REFRESH DOS DADOS
+  const recarregarDados = async () => {
+    setAtualizando(true);
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('membros')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    dadosParaExportar.forEach(m => {
-      const escape = (val: string | null) => val ? `'${val.replace(/'/g, "''")}'` : 'NULL';
-      
-      sqlDump += `INSERT INTO public.membros (nome, genero, data_nascimento, estado_civil, cpf, rg, celular, email, naturalidade, nome_mae, nome_pai, data_batismo, escolaridade, tipo_sanguineo) VALUES (\n  ${escape(m.nome)},\n  ${escape(m.genero)},\n  ${escape(m.data_nascimento)},\n  ${escape(m.estado_civil)},\n  ${escape(m.cpf)},\n  ${escape(m.rg)},\n  ${escape(m.celular)},\n  ${escape(m.email)},\n  ${escape(m.naturalidade)},\n  ${escape(m.nome_mae)},\n  ${escape(m.nome_pai)},\n  ${escape(m.data_batismo)},\n  ${escape(m.escolaridade)},\n  ${escape(m.tipo_sanguineo)}\n);\n\n`;
-    });
-
-    const blob = new Blob([sqlDump], { type: 'text/sql;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `2iba_membros_dump_${new Date().toISOString().slice(0,10)}.sql`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (!error && data) {
+      setMembros(data);
+      setTemNovosCadastros(false);
+      setToastNotificacao(`Sistema atualizado! Total de ${data.length} usuário(s) cadastrado(s).`);
+    } else if (error) {
+      setToastNotificacao('Erro ao sincronizar com o banco de dados.');
+    }
+    
+    setTimeout(() => setAtualizando(false), 500);
+    setTimeout(() => setToastNotificacao(null), 4000);
   };
 
-  // Checkboxes de seleção
-  const toggleSelecionar = (id: string) => {
-    setSelecionados((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
-  };
+  // Filtragem Dinâmica
+  const membrosFiltrados = membros.filter((m) => {
+    const atendeBusca = 
+      m.nome?.toLowerCase().includes(busca.toLowerCase()) ||
+      m.cpf?.includes(busca) ||
+      m.email?.toLowerCase().includes(busca.toLowerCase());
 
+    if (filtroTipo === 'membro') return atendeBusca && m.arrolamento === 'ADMISSÃO';
+    if (filtroTipo === 'visitante') return atendeBusca && m.arrolamento === 'FREQUENTADOR';
+    return atendeBusca;
+  });
+
+  // Lógica de Seleção Múltipla
   const toggleSelecionarTodos = () => {
-    if (selecionados.length === filtrados.length) {
+    if (selecionados.length === membrosFiltrados.length) {
       setSelecionados([]);
     } else {
-      setSelecionados(filtrados.map((m) => m.id));
+      setSelecionados(membrosFiltrados.map((m) => m.id));
     }
   };
 
-  const handleExcluirSelecionados = async () => {
-    if (selecionados.length === 0) return;
-    const confirmacao = window.confirm(`Tem certeza que deseja excluir permanentemente estes ${selecionados.length} cadastro(s)?`);
-    if (!confirmacao) return;
+  const toggleSelecionarUm = (id: string) => {
+    if (selecionados.includes(id)) {
+      setSelecionados(selecionados.filter((item) => item !== id));
+    } else {
+      setSelecionados([...selecionados, id]);
+    }
+  };
 
-    setLoadingExclusao(true);
+  // EXCLUSÃO REAL NO SUPABASE
+  const confirmarExclusao = async () => {
+    setExcluindo(true);
     const supabase = createClient();
-    const { error } = await supabase.from('membros').delete().in('id', selecionados);
-    setLoadingExclusao(false);
+
+    const idsParaDeletar = membroParaExcluirUnico 
+      ? [membroParaExcluirUnico.id] 
+      : selecionados;
+
+    const { error } = await supabase
+      .from('membros')
+      .delete()
+      .in('id', idsParaDeletar);
 
     if (error) {
-      alert(`Erro: ${error.message}`);
+      alert(`Erro ao excluir registro(s): ${error.message}`);
     } else {
+      const novosMembros = membros.filter((m) => !idsParaDeletar.includes(m.id));
+      setMembros(novosMembros);
       setSelecionados([]);
-      router.refresh();
+      setMembroParaExcluirUnico(null);
+      setModalExclusaoAberto(false);
+      setToastNotificacao(`Registro(s) excluído(s). Total atual: ${novosMembros.length} usuário(s).`);
+      setTimeout(() => setToastNotificacao(null), 4000);
     }
+    setExcluindo(false);
+  };
+
+// Exportador XLSX
+  const exportarExcel = () => {
+    const dadosParaExportar = membrosFiltrados.length > 0 ? membrosFiltrados : membros;
+    
+    if (dadosParaExportar.length === 0) {
+      alert('Nenhum cadastro encontrado para exportar.');
+      return;
+    }
+
+    const dadosFormatados = formatarMembrosParaExcel(dadosParaExportar);
+    
+    // Converte os dados formatados em planilha
+    const worksheet = XLSX.utils.json_to_sheet(dadosFormatados);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Membros 2IBA');
+    
+    // Auto-ajuste de largura de colunas
+    if (dadosFormatados.length > 0) {
+      const colWidths = Object.keys(dadosFormatados[0]).map((key) => {
+        const maxLen = Math.max(
+          key.length,
+          ...dadosFormatados.map((r) => String((r as any)[key] || '').length)
+        );
+        return { wch: Math.min(Math.max(maxLen + 3, 12), 40) };
+      });
+      worksheet['!cols'] = colWidths;
+    }
+
+    const dataHoje = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `2IBA_Relatorio_Membros_${dataHoje}.xlsx`);
+  };
+
+  // Exportador Backup SQL
+  const exportarSQL = () => {
+    const lista = membrosFiltrados.length > 0 ? membrosFiltrados : membros;
+    if (lista.length === 0) {
+      alert('Nenhum cadastro encontrado para gerar o arquivo SQL.');
+      return;
+    }
+
+    let sqlContent = `-- BACKUP BANCO DE DADOS 2IBA - GENERATED AT ${new Date().toLocaleString('pt-BR')}\n\n`;
+
+    lista.forEach((m) => {
+      const escapeStr = (val: any) => (val !== null && val !== undefined && val !== '') ? `'${String(val).replace(/'/g, "''")}'` : 'NULL';
+      
+      sqlContent += `INSERT INTO public.membros (id, nome, genero, data_nascimento, estado_civil, cpf, rg, celular, email, cep, endereco, numero, complemento, bairro, cidade, uf, nome_pai, nome_mae, data_batismo, arrolamento, dados_familiares, campos_extra, created_at) VALUES (\n`;
+      sqlContent += `  ${escapeStr(m.id)},\n`;
+      sqlContent += `  ${escapeStr(m.nome)},\n`;
+      sqlContent += `  ${escapeStr(m.genero)},\n`;
+      sqlContent += `  ${escapeStr(m.data_nascimento)},\n`;
+      sqlContent += `  ${escapeStr(m.estado_civil)},\n`;
+      sqlContent += `  ${escapeStr(m.cpf)},\n`;
+      sqlContent += `  ${escapeStr(m.rg)},\n`;
+      sqlContent += `  ${escapeStr(m.celular)},\n`;
+      sqlContent += `  ${escapeStr(m.email)},\n`;
+      sqlContent += `  ${escapeStr(m.cep)},\n`;
+      sqlContent += `  ${escapeStr(m.endereco)},\n`;
+      sqlContent += `  ${escapeStr(m.numero)},\n`;
+      sqlContent += `  ${escapeStr(m.complemento)},\n`;
+      sqlContent += `  ${escapeStr(m.bairro)},\n`;
+      sqlContent += `  ${escapeStr(m.cidade)},\n`;
+      sqlContent += `  ${escapeStr(m.uf)},\n`;
+      sqlContent += `  ${escapeStr(m.nome_pai)},\n`;
+      sqlContent += `  ${escapeStr(m.nome_mae)},\n`;
+      sqlContent += `  ${escapeStr(m.data_batismo)},\n`;
+      sqlContent += `  ${escapeStr(m.arrolamento)},\n`;
+      sqlContent += `  '${JSON.stringify(m.dados_familiares || {})}'::jsonb,\n`;
+      sqlContent += `  '${JSON.stringify(m.campos_extra || {})}'::jsonb,\n`;
+      sqlContent += `  ${escapeStr(m.created_at)}\n`;
+      sqlContent += `) ON CONFLICT (id) DO NOTHING;\n\n`;
+    });
+
+    const blob = new Blob([sqlContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dataHoje = new Date().toISOString().split('T')[0];
+    link.download = `2IBA_Backup_Membros_${dataHoje}.sql`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="space-y-6 font-sans">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 animate-fadeIn font-sans w-full">
+      {/* CARD DE AÇÕES E EXPORTAÇÃO */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Painel de cadastros</h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">{total} cadastro(s) recebido(s)</p>
-        </div>
-      </div>
-
-      {/* Grid de Estatísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Total de Cadastros', val: total },
-          { label: 'Masculino', val: masculino },
-          { label: 'Feminino', val: feminino },
-          { label: 'Sem E-mail', val: semEmail },
-        ].map((card, i) => (
-          <div key={i} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm">
-            <span className="text-3xl font-bold text-neutral-900 dark:text-white">{card.val}</span>
-            <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mt-1">{card.label}</p>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">
+              Painel do Desenvolvedor — 2IBA
+            </h2>
+            
+            <div className="relative inline-flex items-center">
+              <button
+                type="button"
+                onClick={recarregarDados}
+                disabled={atualizando || carregando}
+                className={`p-2.5 rounded-xl transition-all active:scale-90 cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
+                  temNovosCadastros
+                    ? 'bg-amber-500 text-white animate-bounce shadow-lg shadow-amber-500/30 ring-4 ring-amber-500/20'
+                    : 'text-neutral-500 hover:text-iba-blue bg-neutral-100 dark:bg-neutral-800 hover:bg-iba-blue/10 dark:hover:bg-iba-blue/20'
+                }`}
+                title={temNovosCadastros ? "Novo cadastro detectado! Clique para atualizar." : "Atualizar lista de cadastros"}
+              >
+                <svg 
+                  className={`w-4 h-4 ${atualizando || carregando ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {temNovosCadastros && <span>Novo!</span>}
+              </button>
+            </div>
           </div>
-        ))}
-      </div>
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+            Total de {membros.length} cadastros no banco. Sessão expira em 3 minutos de inatividade.
+          </p>
+        </div>
 
-      {/* Alerta de Itens Selecionados */}
-      {selecionados.length > 0 && (
-        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 p-4 rounded-xl flex items-center justify-between text-sm">
-          <span className="text-red-800 dark:text-red-400 font-semibold">
-            ⚡ {selecionados.length} cadastro(s) selecionado(s). As exportações focarão apenas nestes registros.
-          </span>
-          <button onClick={handleExcluirSelecionados} disabled={loadingExclusao} className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase px-4 py-2.5 rounded-lg transition-all">
-            {loadingExclusao ? 'Excluindo…' : 'Excluir do Banco'}
+        {/* BOTÕES DE DOWNLOAD */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto">
+          {selecionados.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setMembroParaExcluirUnico(null);
+                setModalExclusaoAberto(true);
+              }}
+              className="whitespace-nowrap bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-3 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Excluir ({selecionados.length})
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={exportarSQL}
+            className="whitespace-nowrap bg-neutral-800 hover:bg-neutral-900 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2.5 cursor-pointer"
+          >
+            <svg className="w-4 h-4 text-iba-gold flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+            </svg>
+            <span>Exportar SQL</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={exportarExcel}
+            className="whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2.5 cursor-pointer"
+          >
+            <svg className="w-4 h-4 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Exportar XLSX</span>
           </button>
         </div>
-      )}
+      </div>
 
-      {/* Barra de Filtros e Botões com as Funções Prontas */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-neutral-900 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 transition-all">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* BARRA DE PESQUISA E FILTROS */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl p-4 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
+        <div className="md:col-span-2">
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Pesquisar por nome..."
-            className="bg-neutral-50 dark:bg-neutral-800 text-black dark:text-white border border-neutral-200 dark:border-neutral-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-iba-blue"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por nome, CPF ou e-mail..."
+            className="w-full border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-iba-blue"
           />
-          <select
-            value={genderFilter}
-            onChange={(e) => setGenderFilter(e.target.value)}
-            className="bg-neutral-50 dark:bg-neutral-800 text-black dark:text-white border border-neutral-200 dark:border-neutral-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-iba-blue"
-          >
-            <option value="">Todos os sexos</option>
-            <option value="Masculino">Masculino</option>
-            <option value="Feminino">Feminino</option>
-          </select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button onClick={exportarXLSX} className="text-xs font-bold text-iba-blue dark:text-neutral-300 hover:underline px-3 py-2">
-            Baixar XLSX (Eklesia)
-          </button>
-          <button onClick={exportarPDF} className="text-xs font-bold border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800 px-4 py-2 rounded-lg transition-all">
-            Baixar PDF
-          </button>
-          <button onClick={exportarSQL} className="text-xs font-bold border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800 px-4 py-2 rounded-lg transition-all">
-            Baixar SQL
-          </button>
-        </div>
+        <select
+          value={filtroTipo}
+          onChange={(e) => setFiltroTipo(e.target.value)}
+          className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-iba-blue"
+        >
+          <option value="todos">Todos os Registros ({membros.length})</option>
+          <option value="membro">Apenas Membros Ativos</option>
+          <option value="visitante">Apenas Visitantes / Congregantes</option>
+        </select>
       </div>
 
-      {/* Tabela de Dados */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
-        {filtrados.length === 0 ? (
-          <div className="p-8 text-center text-neutral-500 dark:text-neutral-400">
-            Nenhum cadastro encontrado.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 text-neutral-700 dark:text-neutral-300 text-xs font-bold uppercase tracking-wider">
-                  <th className="p-4 w-12 text-center">
-                    <input
-                      type="checkbox"
-                      checked={filtrados.length > 0 && selecionados.length === filtrados.length}
-                      onChange={toggleSelecionarTodos}
-                      className="w-4 h-4 rounded text-iba-blue border-neutral-300 cursor-pointer"
-                    />
-                  </th>
-                  <th className="p-4">Nome</th>
-                  <th className="p-4">Gênero</th>
-                  <th className="p-4">Celular</th>
-                  <th className="p-4">Cidade/UF</th>
-                  <th className="p-4">Cadastrado em</th>
+      {/* TABELA DE REGISTROS */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl shadow-md overflow-hidden w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse min-w-[700px]">
+            <thead className="bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 uppercase tracking-wider font-bold text-neutral-600 dark:text-neutral-400">
+              <tr>
+                <th className="py-3.5 px-4 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={membrosFiltrados.length > 0 && selecionados.length === membrosFiltrados.length}
+                    onChange={toggleSelecionarTodos}
+                    className="rounded text-iba-blue cursor-pointer"
+                  />
+                </th>
+                <th className="py-3.5 px-4">Nome</th>
+                <th className="py-3.5 px-4">Tipo</th>
+                <th className="py-3.5 px-4">CPF</th>
+                <th className="py-3.5 px-4">Celular</th>
+                <th className="py-3.5 px-4">Cidade / UF</th>
+                <th className="py-3.5 px-4 text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 text-neutral-800 dark:text-neutral-200">
+              {carregando ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 text-neutral-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-iba-blue border-t-transparent rounded-full animate-spin" />
+                      <span>Buscando cadastros no banco de dados...</span>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 text-sm text-neutral-900 dark:text-neutral-100">
-                {filtrados.map((membro) => {
-                  const estaSelecionado = selecionados.includes(membro.id);
+              ) : membrosFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-neutral-400">
+                    Nenhum registro encontrado no banco de dados.
+                  </td>
+                </tr>
+              ) : (
+                membrosFiltrados.map((m) => {
+                  const estaSelecionado = selecionados.includes(m.id);
                   return (
-                    <tr key={membro.id} className={estaSelecionado ? 'bg-iba-blue/5 dark:bg-iba-blue/10' : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/40'}>
-                      <td className="p-4 text-center">
+                    <tr 
+                      key={m.id} 
+                      className={`hover:bg-neutral-50/80 dark:hover:bg-neutral-800/30 transition-colors ${
+                        estaSelecionado ? 'bg-iba-blue/5 dark:bg-iba-blue/10' : ''
+                      }`}
+                    >
+                      <td className="py-3.5 px-4 text-center">
                         <input
                           type="checkbox"
                           checked={estaSelecionado}
-                          onChange={() => toggleSelecionar(membro.id)}
-                          className="w-4 h-4 rounded text-iba-blue border-neutral-300 cursor-pointer"
+                          onChange={() => toggleSelecionarUm(m.id)}
+                          className="rounded text-iba-blue cursor-pointer"
                         />
                       </td>
-                      <td className="p-4 font-medium">{membro.nome}</td>
-                      <td className="p-4">{membro.genero || '-'}</td>
-                      <td className="p-4">{membro.celular || '-'}</td>
-                      <td className="p-4">{membro.cidade ? `${membro.cidade}/${membro.uf}` : '-'}</td>
-                      <td className="p-4 text-xs text-neutral-500">
-                        {membro.created_at ? new Date(membro.created_at).toLocaleDateString('pt-BR') : '-'}
+                      <td className="py-3.5 px-4 font-bold text-neutral-900 dark:text-white">{m.nome}</td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                          m.arrolamento === 'ADMISSÃO' 
+                            ? 'bg-iba-blue/10 text-iba-blue' 
+                            : 'bg-emerald-500/10 text-emerald-600'
+                        }`}>
+                          {m.arrolamento === 'ADMISSÃO' ? 'Membro' : 'Visitante'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">{m.cpf || '—'}</td>
+                      <td className="py-3.5 px-4">{m.celular || '—'}</td>
+                      <td className="py-3.5 px-4">{m.cidade ? `${m.cidade} / ${m.uf}` : '—'}</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMembroParaExcluirUnico(m);
+                            setModalExclusaoAberto(true);
+                          }}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg transition-colors font-bold cursor-pointer"
+                          title="Excluir do Banco de Dados"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
+      {modalExclusaoAberto && (
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-50 animate-fadeIn pointer-events-auto">
+          <div className="bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
+                Confirmar Exclusão Definitiva?
+              </h3>
+              <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                {membroParaExcluirUnico ? (
+                  <>Você está prestes a remover o registro de <strong className="text-neutral-900 dark:text-white">{membroParaExcluirUnico.nome}</strong> diretamente do banco de dados.</>
+                ) : (
+                  <>Você está prestes a remover <strong className="text-red-500">{selecionados.length} registro(s)</strong> selecionado(s) diretamente do banco de dados.</>
+                )}
+                <br />Esta ação não poderá ser desfeita.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                disabled={excluindo}
+                onClick={() => {
+                  setModalExclusaoAberto(false);
+                  setMembroParaExcluirUnico(null);
+                }}
+                className="w-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-bold text-xs py-3 rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={excluindo}
+                onClick={confirmarExclusao}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {excluindo ? 'Excluindo...' : 'Sim, Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POP-UP NO CANTO INFERIOR ESQUERDO */}
+      {mounted && toastNotificacao && createPortal(
+        <div className="fixed bottom-6 left-6 z-[999999] animate-fadeIn transition-all pointer-events-auto">
+          <div className="bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 px-5 py-3.5 rounded-2xl shadow-2xl border border-neutral-700 dark:border-neutral-200 flex items-center justify-between gap-4 text-xs font-semibold max-w-sm sm:max-w-md">
+            <div className="flex items-center gap-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-none" />
+              <span className="leading-snug">{toastNotificacao}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setToastNotificacao(null)}
+              className="text-neutral-400 hover:text-white dark:hover:text-black text-xs font-bold cursor-pointer p-1 rounded-lg transition-colors flex-none"
+            >
+              ✕
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
