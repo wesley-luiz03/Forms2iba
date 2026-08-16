@@ -11,6 +11,7 @@ interface Filho {
   genero: string;
   telefone: string;
   email: string;
+  emailNaoSeAplica: boolean;
   foiBatizado: string;
   tipoBatismo: string;
   igrejaBatismo: string;
@@ -123,6 +124,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [orgaoExpedidor, setOrgaoExpedidor] = useState('');
   const [celular, setCellular] = useState('');
   const [email, setEmail] = useState('');
+  const [emailNaoSeAplica, setEmailNaoSeAplica] = useState(false);
   const [dataNascimento, setDataNascimento] = useState('');
 
   // Filiação do Titular
@@ -167,6 +169,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [conjugeOrgao, setConjugeOrgao] = useState('');
   const [conjugeCelular, setConjugeCelular] = useState('');
   const [conjugeEmail, setConjugeEmail] = useState('');
+  const [conjugeEmailNaoSeAplica, setConjugeEmailNaoSeAplica] = useState(false);
   const [conjugeEscolaridade, setConjugeEscolaridade] = useState('');
   const [conjugeSangue, setConjugeSangue] = useState('');
   const [conjugeDoador, setConjugeDoador] = useState('');
@@ -184,7 +187,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   // --- ESTADOS DOS FILHOS ---
   const [possuiFilhos, setPossuiFilhos] = useState('');
   const [filhos, setFilhos] = useState<Filho[]>([
-    { nome: '', cpf: '', dataNascimento: '', genero: '', telefone: '', email: '', foiBatizado: '', tipoBatismo: '', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }
+    { nome: '', cpf: '', dataNascimento: '', genero: '', telefone: '', email: '', emailNaoSeAplica: false, foiBatizado: '', tipoBatismo: '', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }
   ]);
 
   // APIs IBGE
@@ -213,7 +216,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
       .catch(() => setCarregandoCidades(false));
   }, [estadoNatural]);
 
-  // Preenchimento do ViaCEP com indicador de carregamento
+  // Preenchimento do ViaCEP
   useEffect(() => {
     const cleanCep = cep.replace(/\D/g, '');
     if (cleanCep.length === 8) {
@@ -306,7 +309,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   };
 
   const adicionarFilho = () => {
-    setFilhos([...filhos, { nome: '', cpf: '', dataNascimento: '', genero: '', telefone: '', email: '', foiBatizado: '', tipoBatismo: '', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }]);
+    setFilhos([...filhos, { nome: '', cpf: '', dataNascimento: '', genero: '', telefone: '', email: '', emailNaoSeAplica: false, foiBatizado: '', tipoBatismo: '', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }]);
   };
   const removerFilho = (index: number) => {
     setFilhos(filhos.filter((_, i) => i !== index));
@@ -350,6 +353,11 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
       return; 
     }
 
+    if (!emailNaoSeAplica && (!email || errorsByField.email)) {
+      rolarParaOErro('O e-mail do titular é obrigatório ou marque a opção "Não se aplica".');
+      return;
+    }
+
     if (estadoCivil === 'Casado(a)') {
       if (!conjugeNome.trim()) { 
         rolarParaOErro('Preencha o nome do cônjuge.'); 
@@ -358,6 +366,10 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
       if (conjugeCpf && !validarCPF(conjugeCpf)) { 
         rolarParaOErro('O CPF digitado para o cônjuge é inválido.'); 
         return; 
+      }
+      if (!conjugeEmailNaoSeAplica && (!conjugeEmail || errorsByField.conjugeEmail)) {
+        rolarParaOErro('O e-mail do cônjuge é obrigatório ou marque a opção "Não se aplica".');
+        return;
       }
     }
 
@@ -395,10 +407,11 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     const arrolamentoCalculado = tipoFluxo === 'membro' ? 'ADMISSÃO' : 'FREQUENTADOR';
 
     const batismoFinal = batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(dataBatismo);
+    const emailFinal = emailNaoSeAplica ? 'NÃO SE APLICA' : email;
 
     const payloadMembro = {
       nome, genero, data_nascimento: formatarParaISO(dataNascimento),
-      estado_civil: estadoCivil || 'Não informado', cpf: cpf || null, celular, email,
+      estado_civil: estadoCivil || 'Não informado', cpf: cpf || null, celular, email: emailFinal,
       cep, endereco, numero, complemento, bairro, cidade, uf,
       rg: rg || null, escolaridade: escolaridade || 'Não informado', tipo_sanguineo: tipoSanguineo || null,
       eh_doador: isDoador || null, naturalidade: cidadeNatural && estadoNatural ? `${cidadeNatural} - ${estadoNatural}` : null, 
@@ -408,7 +421,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
         conjugeCompleto: estadoCivil === 'Casado(a)' ? {
           nome: conjugeNome, genero: conjugeGenero, dataNascimento: formatarParaISO(conjugeNascimento),
           cpf: conjugeCpf || null, rg: conjugeRg || null, orgaoExpedidor: conjugeOrgao || null,
-          celular: conjugeCelular, email: conjugeEmail, escolaridade: conjugeEscolaridade,
+          celular: conjugeCelular, email: conjugeEmailNaoSeAplica ? 'NÃO SE APLICA' : conjugeEmail, escolaridade: conjugeEscolaridade,
           tipoSanguineo: conjugeSangue, isDoador: conjugeDoador, nomePai: conjugePaiNaoConsta ? 'NÃO CONSTA' : conjugePai,
           nomeMae: conjugeMae, foiBatizado: conjugeBatizado, tipoBatismo: conjugeTipoBatismo, igrejaBatismo: conjugeIgrejaBatismo,
           dataBatismo: conjugeBatismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(conjugeDataBatismo),
@@ -416,7 +429,10 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
         } : null,
         dataUniao: formatarParaISO(conjugeDataUniao),
         filhos: possuiFilhos === 'Sim' ? filhos.map(f => ({
-          ...f, dataNascimento: formatarParaISO(f.dataNascimento), dataBatismo: f.batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(f.dataBatismo)
+          ...f, 
+          email: f.emailNaoSeAplica ? 'NÃO SE APLICA' : f.email,
+          dataNascimento: formatarParaISO(f.dataNascimento), 
+          dataBatismo: f.batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(f.dataBatismo)
         })) : []
       },
       campos_extra: {
@@ -447,12 +463,11 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     router.push('/sucesso');
   }
 
-  // --- SELETOR DE FLUXO INICIAL (LOGO CIRCULAR LIMPA) ---
+  // --- SELETOR DE FLUXO INICIAL ---
   if (!tipoFluxo) {
     return (
       <div className="w-full max-w-[1400px] mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8 animate-fadeIn font-sans">
         <div className="bg-white dark:bg-iba-darkCard border border-iba-sand dark:border-neutral-800 rounded-3xl shadow-2xl p-6 sm:p-12 text-center space-y-6 backdrop-blur-xl">
-          {/* LOGO CIRCULAR AJUSTADA */}
           <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto rounded-full bg-white dark:bg-neutral-800 shadow-md border-2 border-iba-sand flex items-center justify-center p-2 overflow-hidden">
             <img
               src="/logo-2iba.png"
@@ -518,7 +533,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
 
   return (
     <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6 font-sans overflow-x-hidden">
-      {/* Banner Superior com Troca de Modo e Ícone Circular Íntegro */}
+      {/* Banner Superior com Troca de Modo */}
       <div className="bg-white/80 dark:bg-iba-darkCard/80 backdrop-blur-md border border-iba-sand dark:border-neutral-800 rounded-2xl p-3.5 sm:p-4 flex justify-between items-center text-xs shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full overflow-hidden border border-iba-sand bg-white flex items-center justify-center p-0.5 flex-none shadow-sm">
@@ -551,7 +566,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
         )}
 
-        {/* SEÇÃO 1: DADOS DO TITULAR (PAI E MÃE 50% / 50% SIMÉTRICOS) */}
+        {/* SEÇÃO 1: DADOS DO TITULAR (COM OPÇÃO 'PREFIRO NÃO DIZER' NO GÊNERO E PAI/MÃE SIMÉTRICOS) */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">1</span>
@@ -570,6 +585,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                 <option value="">Selecione…</option>
                 <option value="Masculino">Masculino</option>
                 <option value="Feminino">Feminino</option>
+                <option value="Prefiro não dizer">Prefiro não dizer</option>
               </select>
             </div>
 
@@ -644,7 +660,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             </div>
           </div>
 
-          {/* FICHA DO CÔNJUGE COM SLIDE FADE-IN */}
+          {/* FICHA DO CÔNJUGE COM EMAIL 'NÃO SE APLICA' E 'PREFIRO NÃO DIZER' */}
           {estadoCivil === 'Casado(a)' && (
             <div className="mt-6 sm:mt-8 p-4 sm:p-8 bg-iba-cream/50 dark:bg-neutral-800/30 border-l-4 border-l-iba-green border border-iba-sand dark:border-neutral-800 rounded-2xl space-y-4 sm:space-y-6 animate-fadeIn">
               <div className="flex items-center gap-2">
@@ -685,6 +701,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                     <option value="">Selecione…</option>
                     <option value="Masculino">Masculino</option>
                     <option value="Feminino">Feminino</option>
+                    <option value="Prefiro não dizer">Prefiro não dizer</option>
                   </select>
                 </div>
 
@@ -717,15 +734,35 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                 </div>
 
                 <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2 lg:col-span-1">
-                  <label className={labelStyle}>E-mail do Cônjuge <span className="text-red-500">*</span></label>
+                  <div className="flex justify-between items-center">
+                    <label className={labelStyle}>
+                      E-mail do Cônjuge {!conjugeEmailNaoSeAplica && <span className="text-red-500">*</span>}
+                    </label>
+                    <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={conjugeEmailNaoSeAplica} 
+                        onChange={(e) => {
+                          setConjugeEmailNaoSeAplica(e.target.checked);
+                          if (e.target.checked) {
+                            setConjugeEmail('');
+                            setErrorsByField(prev => ({ ...prev, conjugeEmail: '' }));
+                          }
+                        }} 
+                        className="rounded text-iba-green focus:ring-iba-green cursor-pointer" 
+                      />
+                      Não se aplica
+                    </label>
+                  </div>
                   <input 
                     type="email" 
-                    required 
-                    value={conjugeEmail} 
+                    required={!conjugeEmailNaoSeAplica} 
+                    disabled={conjugeEmailNaoSeAplica}
+                    value={conjugeEmailNaoSeAplica ? '' : conjugeEmail} 
                     onChange={(e) => setConjugeEmail(e.target.value)} 
-                    onBlur={(e) => validarCampoEmTempoReal('conjugeEmail', e.target.value)}
-                    placeholder="conjuge@email.com" 
-                    className={`${inputStyle} ${errorsByField.conjugeEmail ? inputErrorStyle : ''}`} 
+                    onBlur={(e) => !conjugeEmailNaoSeAplica && validarCampoEmTempoReal('conjugeEmail', e.target.value)}
+                    placeholder={conjugeEmailNaoSeAplica ? "Não se aplica" : "conjuge@email.com"} 
+                    className={`${inputStyle} disabled:opacity-50 ${errorsByField.conjugeEmail ? inputErrorStyle : ''}`} 
                   />
                   {errorsByField.conjugeEmail && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeEmail}</span>}
                 </div>
@@ -858,6 +895,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                         <option value="">Selecione…</option>
                         <option value="Masculino">Masculino</option>
                         <option value="Feminino">Feminino</option>
+                        <option value="Prefiro não dizer">Prefiro não dizer</option>
                       </select>
                     </div>
 
@@ -867,6 +905,40 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                         <option value="FREQUENTADOR">Congregante</option>
                         <option value="ADMISSÃO">Membro Ativo</option>
                       </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className={labelStyle}>
+                          E-mail do Filho {!filho.emailNaoSeAplica && <span className="text-red-500">*</span>}
+                        </label>
+                        <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={filho.emailNaoSeAplica} 
+                            onChange={(e) => {
+                              atualizarFilho(idx, 'emailNaoSeAplica', e.target.checked);
+                              if (e.target.checked) {
+                                atualizarFilho(idx, 'email', '');
+                                setErrorsByField(prev => ({ ...prev, [`filhoEmail_${idx}`]: '' }));
+                              }
+                            }} 
+                            className="rounded text-iba-green focus:ring-iba-green cursor-pointer" 
+                          />
+                          Não se aplica
+                        </label>
+                      </div>
+                      <input 
+                        type="email" 
+                        required={!filho.emailNaoSeAplica} 
+                        disabled={filho.emailNaoSeAplica}
+                        value={filho.emailNaoSeAplica ? '' : filho.email} 
+                        onChange={(e) => atualizarFilho(idx, 'email', e.target.value)} 
+                        onBlur={(e) => !filho.emailNaoSeAplica && validarCampoEmTempoReal(`filhoEmail_${idx}`, e.target.value)}
+                        placeholder={filho.emailNaoSeAplica ? "Não se aplica" : "filho@email.com"} 
+                        className={`${inputStyle} disabled:opacity-50 ${errorsByField[`filhoEmail_${idx}`] ? inputErrorStyle : ''}`} 
+                      />
+                      {errorsByField[`filhoEmail_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoEmail_${idx}`]}</span>}
                     </div>
 
                     <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-3 border-t border-iba-sand/50 dark:border-neutral-800 pt-3 mt-1">
@@ -971,7 +1043,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
         </div>
 
-        {/* SEÇÃO 4: DOCUMENTAÇÕES E CONTATOS (DISTRIBUIÇÃO HARMONIZADA EM COLUNAS) */}
+        {/* SEÇÃO 4: DOCUMENTAÇÕES E CONTATOS (EMAIL OBRIGATÓRIO COM 'NÃO SE APLICA') */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">4</span>
@@ -1026,15 +1098,35 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             </div>
 
             <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2 lg:col-span-4">
-              <label className={labelStyle}>E-mail <span className="text-red-500">*</span></label>
+              <div className="flex justify-between items-center">
+                <label className={labelStyle}>
+                  E-mail {!emailNaoSeAplica && <span className="text-red-500">*</span>}
+                </label>
+                <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={emailNaoSeAplica} 
+                    onChange={(e) => {
+                      setEmailNaoSeAplica(e.target.checked);
+                      if (e.target.checked) {
+                        setEmail('');
+                        setErrorsByField(prev => ({ ...prev, email: '' }));
+                      }
+                    }} 
+                    className="rounded text-iba-green focus:ring-iba-green cursor-pointer" 
+                  />
+                  Não se aplica
+                </label>
+              </div>
               <input 
                 type="email" 
-                required 
-                value={email} 
+                required={!emailNaoSeAplica} 
+                disabled={emailNaoSeAplica}
+                value={emailNaoSeAplica ? '' : email} 
                 onChange={(e) => setEmail(e.target.value)} 
-                onBlur={(e) => validarCampoEmTempoReal('email', e.target.value)}
-                placeholder="exemplo@email.com" 
-                className={`${inputStyle} ${errorsByField.email ? inputErrorStyle : ''}`} 
+                onBlur={(e) => !emailNaoSeAplica && validarCampoEmTempoReal('email', e.target.value)}
+                placeholder={emailNaoSeAplica ? "Não se aplica" : "exemplo@email.com"} 
+                className={`${inputStyle} disabled:opacity-50 ${errorsByField.email ? inputErrorStyle : ''}`} 
               />
               {errorsByField.email && <span className="text-xs text-red-500 font-semibold">{errorsByField.email}</span>}
             </div>
