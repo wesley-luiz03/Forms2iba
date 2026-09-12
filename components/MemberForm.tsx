@@ -30,14 +30,14 @@ interface CidadeIBGE {
 }
 
 const MINISTERIOS = [
+  "Ministério da 3ª idade",
+  "Ministério da família",
+  "Ministério da juventude",
   "Ministério de ação social",
   "Ministério de comunicação",
   "Ministério de evangelismo e missões",
   "Ministério de Intercessão",
   "Ministério de Louvor",
-  "Ministério da 3ª idade",
-  "Ministério da família",
-  "Ministério da juventude",
   "Ministério infantil",
   "Ministério Mãos de Deus"
 ];
@@ -108,7 +108,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [error, setError] = useState<string | null>(null);
 
   // --- TIPO DE FLUXO PRINCIPAL ---
-  const [tipoFluxo, setTipoFluxo] = useState<'membro' | 'visitante' | null>(null);
+  const [tipoFluxo, setTipoFluxo] = useState<'membro' | 'congregante' | null>(null);
   const [errorsByField, setErrorsByField] = useState<{ [key: string]: string }>({});
   const [aceitaTermosLgpd, setAceitaTermosLgpd] = useState(false);
 
@@ -463,7 +463,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     router.push('/sucesso');
   }
 
-  // --- SELETOR DE FLUXO INICIAL ---
+  // --- SELETOR DE FLUXO INICIAL (COM CONGREGANTE E LOGO CIRCULAR) ---
   if (!tipoFluxo) {
     return (
       <div className="w-full max-w-[1400px] mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8 animate-fadeIn font-sans">
@@ -488,7 +488,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-2 sm:pt-4 max-w-4xl mx-auto">
             <button
               type="button"
-              onClick={() => setTipoFluxo('visitante')}
+              onClick={() => setTipoFluxo('congregante')}
               className="group flex flex-col items-center justify-center p-6 sm:p-8 bg-iba-cream/40 dark:bg-neutral-800/40 border-2 border-iba-sand dark:border-neutral-800 hover:border-iba-green hover:bg-iba-green/10 dark:hover:border-iba-green rounded-2xl transition-all duration-300 transform active:scale-95 shadow-sm hover:shadow-lg text-center cursor-pointer"
             >
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-iba-green/10 text-iba-green rounded-2xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
@@ -497,10 +497,10 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                 </svg>
               </div>
               <h3 className="font-bold text-sm sm:text-base text-neutral-800 dark:text-neutral-100 group-hover:text-iba-green transition-colors">
-                Sou Visitante / Congregante
+                Sou Congregante
               </h3>
               <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 sm:mt-2 leading-relaxed">
-                Cadastro rápido e simplificado para visitantes e participantes de cultos.
+                Cadastro rápido e simplificado para participantes e frequentadores dos cultos.
               </p>
             </button>
 
@@ -541,7 +541,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
           <div>
             <span className="text-neutral-600 dark:text-neutral-400 text-[11px] sm:text-xs block">
-              Modo selecionado: <strong className="uppercase font-bold text-iba-green">{tipoFluxo === 'membro' ? 'Membro Ativo' : 'Visitante / Congregante'}</strong>
+              Modo selecionado: <strong className="uppercase font-bold text-iba-green">{tipoFluxo === 'membro' ? 'Membro Ativo' : 'Congregante'}</strong>
             </span>
             <span className="text-[10px] text-neutral-400">⏱️ Tempo estimado: ~3 minutos</span>
           </div>
@@ -566,7 +566,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
         )}
 
-        {/* SEÇÃO 1: DADOS DO TITULAR (COM OPÇÃO 'PREFIRO NÃO DIZER' NO GÊNERO E PAI/MÃE SIMÉTRICOS) */}
+        {/* SEÇÃO 1: DADOS DO TITULAR (GÊNERO RESTRITO A MASCULINO E FEMININO) */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">1</span>
@@ -585,7 +585,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                 <option value="">Selecione…</option>
                 <option value="Masculino">Masculino</option>
                 <option value="Feminino">Feminino</option>
-                <option value="Prefiro não dizer">Prefiro não dizer</option>
               </select>
             </div>
 
@@ -616,7 +615,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             </div>
           </div>
 
-          {/* LINHA SIMÉTRICA PARA PAI E MÃE (50% / 50%) */}
+          {/* LINHA SIMÉTRICA PARA PAI E MÃE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
             <div className="flex flex-col gap-1.5 sm:gap-2">
               <div className="flex justify-between items-center">
@@ -660,7 +659,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             </div>
           </div>
 
-          {/* FICHA DO CÔNJUGE COM EMAIL 'NÃO SE APLICA' E 'PREFIRO NÃO DIZER' */}
+          {/* FICHA DO CÔNJUGE COM GÊNERO APENAS MASCULINO/FEMININO */}
           {estadoCivil === 'Casado(a)' && (
             <div className="mt-6 sm:mt-8 p-4 sm:p-8 bg-iba-cream/50 dark:bg-neutral-800/30 border-l-4 border-l-iba-green border border-iba-sand dark:border-neutral-800 rounded-2xl space-y-4 sm:space-y-6 animate-fadeIn">
               <div className="flex items-center gap-2">
@@ -701,7 +700,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                     <option value="">Selecione…</option>
                     <option value="Masculino">Masculino</option>
                     <option value="Feminino">Feminino</option>
-                    <option value="Prefiro não dizer">Prefiro não dizer</option>
                   </select>
                 </div>
 
@@ -895,7 +893,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                         <option value="">Selecione…</option>
                         <option value="Masculino">Masculino</option>
                         <option value="Feminino">Feminino</option>
-                        <option value="Prefiro não dizer">Prefiro não dizer</option>
                       </select>
                     </div>
 
@@ -1043,7 +1040,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
         </div>
 
-        {/* SEÇÃO 4: DOCUMENTAÇÕES E CONTATOS (EMAIL OBRIGATÓRIO COM 'NÃO SE APLICA') */}
+        {/* SEÇÃO 4: DOCUMENTAÇÕES E CONTATOS */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">4</span>

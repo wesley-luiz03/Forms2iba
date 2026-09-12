@@ -48,8 +48,9 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     carregarMembrosIniciais();
 
     // Timer de inatividade (10 min)
-    const TEMPO_OCIOSIDADE_MS = 3 * 60 * 1000;
+    const TEMPO_OCIOSIDADE_MS = 10 * 60 * 1000;
     const deslogarPorInatividade = () => {
+      localStorage.removeItem('dev_authenticated');
       document.cookie = "dev_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
       window.location.href = '/admin/login';
     };
@@ -99,7 +100,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     if (!error && data) {
       setMembros(data);
       setTemNovosCadastros(false);
-      setToastNotificacao(`Sistema atualizado! Total de ${data.length} usuário(s) cadastrado(s).`);
+      setToastNotificacao(`Sistema sincronizado! Total de ${data.length} cadastro(s).`);
     } else if (error) {
       setToastNotificacao('Erro ao sincronizar com o banco de dados.');
     }
@@ -108,7 +109,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     setTimeout(() => setToastNotificacao(null), 4000);
   };
 
-  // Filtragem Dinâmica
+  // Filtragem Dinâmica (Congregante no lugar de Visitante)
   const membrosFiltrados = membros.filter((m) => {
     const atendeBusca = 
       m.nome?.toLowerCase().includes(busca.toLowerCase()) ||
@@ -116,7 +117,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       m.email?.toLowerCase().includes(busca.toLowerCase());
 
     if (filtroTipo === 'membro') return atendeBusca && m.arrolamento === 'ADMISSÃO';
-    if (filtroTipo === 'visitante') return atendeBusca && m.arrolamento === 'FREQUENTADOR';
+    if (filtroTipo === 'congregante') return atendeBusca && m.arrolamento === 'FREQUENTADOR';
     return atendeBusca;
   });
 
@@ -159,13 +160,13 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       setSelecionados([]);
       setMembroParaExcluirUnico(null);
       setModalExclusaoAberto(false);
-      setToastNotificacao(`Registro(s) excluído(s). Total atual: ${novosMembros.length} usuário(s).`);
+      setToastNotificacao(`Registro(s) excluído(s) com sucesso. Total restante: ${novosMembros.length}.`);
       setTimeout(() => setToastNotificacao(null), 4000);
     }
     setExcluindo(false);
   };
 
-// Exportador XLSX
+  // Exportador XLSX
   const exportarExcel = () => {
     const dadosParaExportar = membrosFiltrados.length > 0 ? membrosFiltrados : membros;
     
@@ -176,12 +177,10 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
 
     const dadosFormatados = formatarMembrosParaExcel(dadosParaExportar);
     
-    // Converte os dados formatados em planilha
     const worksheet = XLSX.utils.json_to_sheet(dadosFormatados);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Membros 2IBA');
     
-    // Auto-ajuste de largura de colunas
     if (dadosFormatados.length > 0) {
       const colWidths = Object.keys(dadosFormatados[0]).map((key) => {
         const maxLen = Math.max(
@@ -265,7 +264,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                 className={`p-2.5 rounded-xl transition-all active:scale-90 cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
                   temNovosCadastros
                     ? 'bg-amber-500 text-white animate-bounce shadow-lg shadow-amber-500/30 ring-4 ring-amber-500/20'
-                    : 'text-neutral-500 hover:text-iba-blue bg-neutral-100 dark:bg-neutral-800 hover:bg-iba-blue/10 dark:hover:bg-iba-blue/20'
+                    : 'text-neutral-500 hover:text-iba-green bg-neutral-100 dark:bg-neutral-800 hover:bg-iba-green/10 dark:hover:bg-iba-green/20'
                 }`}
                 title={temNovosCadastros ? "Novo cadastro detectado! Clique para atualizar." : "Atualizar lista de cadastros"}
               >
@@ -282,11 +281,11 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
             </div>
           </div>
           <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            Total de {membros.length} cadastros no banco. Sessão expira em 3 minutos de inatividade.
+            Total de {membros.length} cadastros no banco. Sessão expira em 10 minutos de inatividade.
           </p>
         </div>
 
-        {/* BOTÕES DE DOWNLOAD */}
+        {/* BOTÕES DE DOWNLOAD E EXCLUSÃO EM LOTE */}
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto">
           {selecionados.length > 0 && (
             <button
@@ -336,18 +335,18 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar por nome, CPF ou e-mail..."
-            className="w-full border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-iba-blue"
+            className="w-full border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-iba-green"
           />
         </div>
 
         <select
           value={filtroTipo}
           onChange={(e) => setFiltroTipo(e.target.value)}
-          className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-iba-blue"
+          className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-iba-green"
         >
           <option value="todos">Todos os Registros ({membros.length})</option>
           <option value="membro">Apenas Membros Ativos</option>
-          <option value="visitante">Apenas Visitantes / Congregantes</option>
+          <option value="congregante">Apenas Congregantes</option>
         </select>
       </div>
 
@@ -362,7 +361,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                     type="checkbox"
                     checked={membrosFiltrados.length > 0 && selecionados.length === membrosFiltrados.length}
                     onChange={toggleSelecionarTodos}
-                    className="rounded text-iba-blue cursor-pointer"
+                    className="rounded text-iba-green cursor-pointer"
                   />
                 </th>
                 <th className="py-3.5 px-4">Nome</th>
@@ -378,7 +377,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-neutral-500">
                     <div className="flex items-center justify-center gap-2">
-                      <span className="w-4 h-4 border-2 border-iba-blue border-t-transparent rounded-full animate-spin" />
+                      <span className="w-4 h-4 border-2 border-iba-green border-t-transparent rounded-full animate-spin" />
                       <span>Buscando cadastros no banco de dados...</span>
                     </div>
                   </td>
@@ -396,7 +395,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                     <tr 
                       key={m.id} 
                       className={`hover:bg-neutral-50/80 dark:hover:bg-neutral-800/30 transition-colors ${
-                        estaSelecionado ? 'bg-iba-blue/5 dark:bg-iba-blue/10' : ''
+                        estaSelecionado ? 'bg-iba-green/5 dark:bg-iba-green/10' : ''
                       }`}
                     >
                       <td className="py-3.5 px-4 text-center">
@@ -404,17 +403,17 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                           type="checkbox"
                           checked={estaSelecionado}
                           onChange={() => toggleSelecionarUm(m.id)}
-                          className="rounded text-iba-blue cursor-pointer"
+                          className="rounded text-iba-green cursor-pointer"
                         />
                       </td>
                       <td className="py-3.5 px-4 font-bold text-neutral-900 dark:text-white">{m.nome}</td>
                       <td className="py-3.5 px-4">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
                           m.arrolamento === 'ADMISSÃO' 
-                            ? 'bg-iba-blue/10 text-iba-blue' 
+                            ? 'bg-iba-green/10 text-iba-green' 
                             : 'bg-emerald-500/10 text-emerald-600'
                         }`}>
-                          {m.arrolamento === 'ADMISSÃO' ? 'Membro' : 'Visitante'}
+                          {m.arrolamento === 'ADMISSÃO' ? 'Membro' : 'Congregante'}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">{m.cpf || '—'}</td>
@@ -444,10 +443,10 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
         </div>
       </div>
 
-      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
-      {modalExclusaoAberto && (
-        <div className="fixed inset-0 flex items-center justify-center p-4 z-50 animate-fadeIn pointer-events-auto">
-          <div className="bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
+      {/* MODAL GLOBAL DE CONFIRMAÇÃO DE EXCLUSÃO (COM PORTAL E BACKDROP TOTAL) */}
+      {mounted && modalExclusaoAberto && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[999999] animate-fadeIn">
+          <div className="bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-scaleUp">
             <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -476,7 +475,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                   setModalExclusaoAberto(false);
                   setMembroParaExcluirUnico(null);
                 }}
-                className="w-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-bold text-xs py-3 rounded-xl transition-all cursor-pointer"
+                className="w-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-bold text-xs py-3 rounded-xl transition-all cursor-pointer disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -484,13 +483,21 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                 type="button"
                 disabled={excluindo}
                 onClick={confirmarExclusao}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
               >
-                {excluindo ? 'Excluindo...' : 'Sim, Excluir'}
+                {excluindo ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <span>Sim, Excluir</span>
+                )}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* POP-UP NO CANTO INFERIOR ESQUERDO */}
