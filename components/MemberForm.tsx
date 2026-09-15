@@ -12,7 +12,7 @@ interface Filho {
   telefone: string;
   email: string;
   emailNaoSeAplica: boolean;
-  foiBatizado: string;
+  foiBatizado: string; // '' | 'Sim' | 'Não'
   tipoBatismo: string;
   igrejaBatismo: string;
   dataBatismo: string;
@@ -29,17 +29,24 @@ interface CidadeIBGE {
   nome: string;
 }
 
-const MINISTERIOS = [
-  "Ministério da 3ª idade",
-  "Ministério da família",
-  "Ministério da juventude",
-  "Ministério de ação social",
-  "Ministério de comunicação",
-  "Ministério de evangelismo e missões",
-  "Ministério de Intercessão",
-  "Ministério de Louvor",
-  "Ministério infantil",
-  "Ministério Mãos de Deus"
+interface MinisterioInfo {
+  nome: string;
+  tag: string;
+  icone: string;
+  destaque?: boolean;
+}
+
+const LISTA_MINISTERIOS: MinisterioInfo[] = [
+  { nome: "Ministério da 3ª idade", tag: "Cuidado e Maturidade", icone: "sun" },
+  { nome: "Ministério da família", tag: "Lares e Casais", icone: "home", destaque: true },
+  { nome: "Ministério da juventude", tag: "Jovens e Adolescentes", icone: "zap" },
+  { nome: "Ministério de ação social", tag: "Assistência e Amor", icone: "heart" },
+  { nome: "Ministério de comunicação", tag: "Mídias e Transmissão", icone: "radio" },
+  { nome: "Ministério de evangelismo e missões", tag: "Expansão e Ide", icone: "compass", destaque: true },
+  { nome: "Ministério de Intercessão", tag: "Oração Contínua", icone: "flame" },
+  { nome: "Ministério de Louvor", tag: "Música e Adoração", icone: "music" },
+  { nome: "Ministério infantil", tag: "Ensino para Crianças", icone: "smile" },
+  { nome: "Ministério Mãos de Deus", tag: "Acolhimento e Serviço", icone: "shield" },
 ];
 
 const FAQS = [
@@ -64,6 +71,31 @@ const FAQS = [
     resposta: "Não há problema. Basta marcar a caixa de seleção 'Não me recordo' localizada logo acima do campo de data. O sistema aceitará a homologação do formulário normalmente."
   }
 ];
+
+const renderIconeMinisterio = (icone: string) => {
+  switch (icone) {
+    case 'sun':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />;
+    case 'home':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />;
+    case 'zap':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />;
+    case 'heart':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />;
+    case 'radio':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.636 8.464a5 5 0 000 7.072m-2.828-9.9a9 9 0 000 12.728M12 12h.01" />;
+    case 'compass':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />;
+    case 'flame':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343a7.975 7.975 0 012.344 5.657 7.975 7.975 0 01-2.343 5.657z" />;
+    case 'music':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />;
+    case 'smile':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />;
+    default:
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />;
+  }
+};
 
 // --- FUNÇÕES DE MÁSCARA E VALIDAÇÃO ---
 const validarCPF = (cpf: string): boolean => {
@@ -117,8 +149,8 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
 
   // --- ESTADOS DO TITULAR ---
   const [nome, setNome] = useState('');
-  const [genero, setGenero] = useState('');
-  const [estadoCivil, setEstadoCivil] = useState('');
+  const [genero, setGenero] = useState('Masculino');
+  const [estadoCivil, setEstadoCivil] = useState('Solteiro(a)');
   const [cpf, setCpf] = useState('');
   const [rg, setRg] = useState('');
   const [orgaoExpedidor, setOrgaoExpedidor] = useState('');
@@ -132,7 +164,8 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [paiNaoConsta, setPaiNaoConsta] = useState(false);
   const [nomeMae, setNomeMae] = useState('');
 
-  // Batismo (Titular)
+  // Batismo (Titular) -> Começa desmarcado (null)
+  const [titularBatizado, setTitularBatizado] = useState<'Sim' | 'Não' | null>(null);
   const [igrejaBatismo, setIgrejaBatismo] = useState('');
   const [dataBatismo, setDataBatismo] = useState('');
   const [batismoNaoRecordo, setBatismoNaoRecordo] = useState(false);
@@ -153,16 +186,16 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [tipoSanguineo, setTipoSanguineo] = useState('');
   const [isDoador, setIsDoador] = useState('');
 
-  // Ministérios
-  const [fazParteMinisterio, setFazParteMinisterio] = useState('');
+  // Ministérios -> Começam desmarcados (null)
+  const [fazParteMinisterio, setFazParteMinisterio] = useState<'Sim' | 'Não' | null>(null);
   const [qualMinisterioFazParte, setQualMinisterioFazParte] = useState<string[]>([]);
-  const [querParticiparMinisterio, setQuerParticiparMinisterio] = useState('');
+  const [querParticiparMinisterio, setQuerParticiparMinisterio] = useState<'Sim' | 'Não' | null>(null);
   const [qualMinisterioQuerParticipar, setQualMinisterioQuerParticipar] = useState<string[]>([]);
   const [respostasCustomizadas, setRespostasCustomizadas] = useState<{ [key: string]: any }>({});
 
   // --- ESTADOS DO CÔNJUGE ---
   const [conjugeNome, setConjugeNome] = useState('');
-  const [conjugeGenero, setConjugeGenero] = useState('');
+  const [conjugeGenero, setConjugeGenero] = useState('Feminino');
   const [conjugeNascimento, setConjugeNascimento] = useState('');
   const [conjugeCpf, setConjugeCpf] = useState('');
   const [conjugeRg, setConjugeRg] = useState('');
@@ -176,18 +209,20 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [conjugePai, setConjugePai] = useState('');
   const [conjugePaiNaoConsta, setConjugePaiNaoConsta] = useState(false);
   const [conjugeMae, setConjugeMae] = useState('');
-  const [conjugeBatizado, setConjugeBatizado] = useState('');
-  const [conjugeTipoBatismo, setConjugeTipoBatismo] = useState('');
+  // Batismo cônjuge -> Começa desmarcado (null)
+  const [conjugeBatizado, setConjugeBatizado] = useState<'Sim' | 'Não' | null>(null);
+  const [conjugeTipoBatismo, setConjugeTipoBatismo] = useState('Imersão');
   const [conjugeIgrejaBatismo, setConjugeIgrejaBatismo] = useState('');
   const [conjugeDataBatismo, setConjugeDataBatismo] = useState('');
   const [conjugeBatismoNaoRecordo, setConjugeBatismoNaoRecordo] = useState(false);
-  const [conjugeArrolamento, setConjugeArrolamento] = useState('');
+  const [conjugeArrolamento, setConjugeArrolamento] = useState('ADMISSÃO');
   const [conjugeDataUniao, setConjugeDataUniao] = useState('');
 
   // --- ESTADOS DOS FILHOS ---
-  const [possuiFilhos, setPossuiFilhos] = useState('');
+  // Possui filhos -> Começa desmarcado (null)
+  const [possuiFilhos, setPossuiFilhos] = useState<'Sim' | 'Não' | null>(null);
   const [filhos, setFilhos] = useState<Filho[]>([
-    { nome: '', cpf: '', dataNascimento: '', genero: '', telefone: '', email: '', emailNaoSeAplica: false, foiBatizado: '', tipoBatismo: '', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }
+    { nome: '', cpf: '', dataNascimento: '', genero: 'Masculino', telefone: '', email: '', emailNaoSeAplica: false, foiBatizado: '', tipoBatismo: 'Imersão', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }
   ]);
 
   // APIs IBGE
@@ -309,7 +344,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   };
 
   const adicionarFilho = () => {
-    setFilhos([...filhos, { nome: '', cpf: '', dataNascimento: '', genero: '', telefone: '', email: '', emailNaoSeAplica: false, foiBatizado: '', tipoBatismo: '', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }]);
+    setFilhos([...filhos, { nome: '', cpf: '', dataNascimento: '', genero: 'Masculino', telefone: '', email: '', emailNaoSeAplica: false, foiBatizado: '', tipoBatismo: 'Imersão', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }]);
   };
   const removerFilho = (index: number) => {
     setFilhos(filhos.filter((_, i) => i !== index));
@@ -371,6 +406,15 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
         rolarParaOErro('O e-mail do cônjuge é obrigatório ou marque a opção "Não se aplica".');
         return;
       }
+      if (!conjugeBatizado) {
+        rolarParaOErro('Por favor, indique se o seu cônjuge já foi batizado (Sim ou Não).');
+        return;
+      }
+    }
+
+    if (!possuiFilhos) {
+      rolarParaOErro('Por favor, indique se você possui filhos ou dependentes (Sim ou Não).');
+      return;
     }
 
     if (possuiFilhos === 'Sim') {
@@ -379,22 +423,43 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           rolarParaOErro(`O CPF do filho #${i + 1} (${filhos[i].nome || 'sem nome'}) é inválido.`);
           return;
         }
+        if (!filhos[i].foiBatizado) {
+          rolarParaOErro(`Por favor, indique se o filho #${i + 1} (${filhos[i].nome || 'sem nome'}) é batizado.`);
+          return;
+        }
       }
     }
 
-    if (!batismoNaoRecordo && (!dataBatismo || dataBatismo.length !== 10)) {
-      rolarParaOErro('A data do batismo do titular é obrigatória ou marque a opção "Não me recordo".');
+    if (!titularBatizado) {
+      rolarParaOErro('Por favor, informe na Seção 3 se você já foi batizado (Sim ou Não).');
       return;
     }
 
+    if (titularBatizado === 'Sim') {
+      if (!batismoNaoRecordo && (!dataBatismo || dataBatismo.length !== 10)) {
+        rolarParaOErro('A data do batismo do titular é obrigatória ou marque a opção "Não me recordo".');
+        return;
+      }
+    }
+
     if (tipoFluxo === 'membro') {
+      if (!fazParteMinisterio) {
+        rolarParaOErro('Por favor, informe na Seção 6 se você faz parte de algum ministério atualmente.');
+        return;
+      }
       if (fazParteMinisterio === 'Sim' && qualMinisterioFazParte.length === 0) {
         rolarParaOErro('Por favor, selecione ao menos um ministério do qual você faz parte.');
         return;
       }
-      if (fazParteMinisterio === 'Não' && querParticiparMinisterio === 'Sim' && qualMinisterioQuerParticipar.length === 0) {
-        rolarParaOErro('Por favor, selecione ao menos um ministério que você gostaria de integrar.');
-        return;
+      if (fazParteMinisterio === 'Não') {
+        if (!querParticiparMinisterio) {
+          rolarParaOErro('Por favor, informe se você gostaria de integrar algum ministério.');
+          return;
+        }
+        if (querParticiparMinisterio === 'Sim' && qualMinisterioQuerParticipar.length === 0) {
+          rolarParaOErro('Por favor, selecione ao menos um ministério que você gostaria de integrar.');
+          return;
+        }
       }
     }
 
@@ -406,7 +471,13 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     const supabase = createClient();
     const arrolamentoCalculado = tipoFluxo === 'membro' ? 'ADMISSÃO' : 'FREQUENTADOR';
 
-    const batismoFinal = batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(dataBatismo);
+    let batismoFinal: string | null = null;
+    if (titularBatizado === 'Sim') {
+      batismoFinal = batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(dataBatismo);
+    } else {
+      batismoFinal = 'NÃO BATIZADO';
+    }
+
     const emailFinal = emailNaoSeAplica ? 'NÃO SE APLICA' : email;
 
     const payloadMembro = {
@@ -423,7 +494,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           cpf: conjugeCpf || null, rg: conjugeRg || null, orgaoExpedidor: conjugeOrgao || null,
           celular: conjugeCelular, email: conjugeEmailNaoSeAplica ? 'NÃO SE APLICA' : conjugeEmail, escolaridade: conjugeEscolaridade,
           tipoSanguineo: conjugeSangue, isDoador: conjugeDoador, nomePai: conjugePaiNaoConsta ? 'NÃO CONSTA' : conjugePai,
-          nomeMae: conjugeMae, foiBatizado: conjugeBatizado, tipoBatismo: conjugeTipoBatismo, igrejaBatismo: conjugeIgrejaBatismo,
+          nomeMae: conjugeMae, foiBatizado: conjugeBatizado || 'Não informado', tipoBatismo: conjugeTipoBatismo, igrejaBatismo: conjugeIgrejaBatismo,
           dataBatismo: conjugeBatismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(conjugeDataBatismo),
           arrolamento: conjugeArrolamento
         } : null,
@@ -437,7 +508,8 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
       },
       campos_extra: {
         ...respostasCustomizadas, orgao_expedidor: orgaoExpedidor || null, ponto_referencia: pontoReferencia || null,
-        igreja_batismo: igrejaBatismo || null, 
+        foi_batizado: titularBatizado,
+        igreja_batismo: titularBatizado === 'Sim' ? (igrejaBatismo || null) : null, 
         faz_parte_ministerio: tipoFluxo === 'membro' ? fazParteMinisterio : null,
         qual_ministerio_faz_parte: tipoFluxo === 'membro' && fazParteMinisterio === 'Sim' ? qualMinisterioFazParte : null, 
         quer_participar_ministerio: tipoFluxo === 'membro' && fazParteMinisterio === 'Não' ? querParticiparMinisterio : null,
@@ -463,11 +535,49 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     router.push('/sucesso');
   }
 
-  // --- SELETOR DE FLUXO INICIAL (COM CONGREGANTE E LOGO CIRCULAR) ---
+  // --- COMPONENTE COMPARTILHADO DE FAQ ---
+  const renderFaqSection = () => (
+    <div className="bg-white/80 dark:bg-iba-darkCard/80 backdrop-blur-md border border-iba-sand/80 dark:border-neutral-800 rounded-2xl p-5 sm:p-8 shadow-sm space-y-4 sm:space-y-5 transition-all duration-300">
+      <div className="flex items-center gap-2.5 pb-2.5 sm:pb-3 border-b border-iba-sand/50 dark:border-neutral-800">
+        <span className="w-2.5 h-2.5 rounded-full bg-iba-green animate-pulse" />
+        <h4 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white">
+          Dúvidas e Perguntas Frequentes
+        </h4>
+      </div>
+      <div className="space-y-2.5 sm:space-y-3">
+        {FAQS.map((faq) => {
+          const isAberto = faqAberto === faq.id;
+          return (
+            <div key={faq.id} className="border border-iba-sand/80 dark:border-neutral-800 rounded-xl overflow-hidden transition-all bg-iba-cream/20 dark:bg-neutral-800/20">
+              <button
+                type="button"
+                onClick={() => setFaqAberto(isAberto ? null : faq.id)}
+                className="w-full text-left p-3.5 sm:p-5 flex justify-between items-center gap-3 hover:bg-iba-cream/50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer"
+              >
+                <span className="font-bold text-xs sm:text-sm text-neutral-800 dark:text-neutral-200">{faq.pergunta}</span>
+                <span className="p-1.5 sm:p-2 bg-white dark:bg-neutral-800 border border-iba-sand dark:border-neutral-700 rounded-lg text-neutral-500 flex-none shadow-sm">
+                  <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${isAberto ? 'rotate-180 text-iba-green' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </button>
+              {isAberto && (
+                <div className="px-4 pb-4 sm:px-5 sm:pb-5 text-[11px] sm:text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed border-t border-iba-sand/40 dark:border-neutral-800/60 pt-3 sm:pt-4 animate-fadeIn">
+                  {faq.resposta}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // --- SELETOR DE FLUXO INICIAL ---
   if (!tipoFluxo) {
     return (
-      <div className="w-full max-w-[1400px] mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8 animate-fadeIn font-sans">
-        <div className="bg-white dark:bg-iba-darkCard border border-iba-sand dark:border-neutral-800 rounded-3xl shadow-2xl p-6 sm:p-12 text-center space-y-6 backdrop-blur-xl">
+      <div className="w-full max-w-[1400px] mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8 space-y-8 animate-fadeIn font-sans">
+        <div className="bg-white/90 dark:bg-iba-darkCard/90 border border-iba-sand/80 dark:border-neutral-800 rounded-3xl shadow-2xl p-6 sm:p-12 text-center space-y-6 backdrop-blur-xl">
           <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto rounded-full bg-white dark:bg-neutral-800 shadow-md border-2 border-iba-sand flex items-center justify-center p-2 overflow-hidden">
             <img
               src="/logo-2iba.png"
@@ -486,43 +596,48 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-2 sm:pt-4 max-w-4xl mx-auto">
+            {/* Card Congregante */}
             <button
               type="button"
               onClick={() => setTipoFluxo('congregante')}
-              className="group flex flex-col items-center justify-center p-6 sm:p-8 bg-iba-cream/40 dark:bg-neutral-800/40 border-2 border-iba-sand dark:border-neutral-800 hover:border-iba-green hover:bg-iba-green/10 dark:hover:border-iba-green rounded-2xl transition-all duration-300 transform active:scale-95 shadow-sm hover:shadow-lg text-center cursor-pointer"
+              className="group relative flex flex-col items-center justify-center p-6 sm:p-8 bg-iba-cream/30 dark:bg-neutral-800/40 border-2 border-iba-sand/70 dark:border-neutral-800 hover:border-iba-green hover:bg-iba-green/5 dark:hover:border-iba-green rounded-2xl transition-all duration-300 transform active:scale-[0.98] shadow-sm hover:shadow-xl text-center cursor-pointer overflow-hidden"
             >
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-iba-green/10 text-iba-green rounded-2xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
-                <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-14 h-14 bg-iba-green/10 text-iba-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-iba-green group-hover:text-white transition-all duration-300 shadow-sm">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <h3 className="font-bold text-sm sm:text-base text-neutral-800 dark:text-neutral-100 group-hover:text-iba-green transition-colors">
+              <h3 className="font-bold text-base sm:text-lg text-neutral-800 dark:text-neutral-100 group-hover:text-iba-green transition-colors">
                 Sou Congregante
               </h3>
-              <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 sm:mt-2 leading-relaxed">
-                Cadastro rápido e simplificado para participantes e frequentadores dos cultos.
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed">
+                Cadastro rápido para participantes e frequentadores regulares dos cultos.
               </p>
             </button>
 
+            {/* Card Membro */}
             <button
               type="button"
               onClick={() => setTipoFluxo('membro')}
-              className="group flex flex-col items-center justify-center p-6 sm:p-8 bg-iba-cream/40 dark:bg-neutral-800/40 border-2 border-iba-sand dark:border-neutral-800 hover:border-iba-green hover:bg-iba-green/10 dark:hover:border-iba-green rounded-2xl transition-all duration-300 transform active:scale-95 shadow-sm hover:shadow-lg text-center cursor-pointer"
+              className="group relative flex flex-col items-center justify-center p-6 sm:p-8 bg-iba-cream/30 dark:bg-neutral-800/40 border-2 border-iba-sand/70 dark:border-neutral-800 hover:border-iba-green hover:bg-iba-green/5 dark:hover:border-iba-green rounded-2xl transition-all duration-300 transform active:scale-[0.98] shadow-sm hover:shadow-xl text-center cursor-pointer overflow-hidden"
             >
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-iba-green/10 text-iba-green rounded-2xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
-                <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-14 h-14 bg-iba-green/10 text-iba-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-iba-green group-hover:text-white transition-all duration-300 shadow-sm">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               </div>
-              <h3 className="font-bold text-sm sm:text-base text-neutral-800 dark:text-neutral-100 group-hover:text-iba-green transition-colors">
+              <h3 className="font-bold text-base sm:text-lg text-neutral-800 dark:text-neutral-100 group-hover:text-iba-green transition-colors">
                 Sou Membro da 2IBA
               </h3>
-              <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 sm:mt-2 leading-relaxed">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed">
                 Ficha completa necessária para homologação do seu registro oficial de membresia.
               </p>
             </button>
           </div>
         </div>
+
+        {/* DÚVIDAS E PERGUNTAS FREQUENTES */}
+        {renderFaqSection()}
       </div>
     );
   }
@@ -566,7 +681,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
         )}
 
-        {/* SEÇÃO 1: DADOS DO TITULAR (GÊNERO RESTRITO A MASCULINO E FEMININO) */}
+        {/* SEÇÃO 1: DADOS DO TITULAR */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">1</span>
@@ -579,13 +694,29 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
               <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Digite seu nome completo" className={inputStyle} />
             </div>
 
+            {/* CHOICE CARDS: GÊNERO */}
             <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Gênero <span className="text-red-500">*</span></label>
-              <select required value={genero} onChange={(e) => setGenero(e.target.value)} className={inputStyle}>
-                <option value="">Selecione…</option>
-                <option value="Masculino">Masculino</option>
-                <option value="Feminino">Feminino</option>
-              </select>
+              <div className="grid grid-cols-2 gap-2">
+                {(['Masculino', 'Feminino'] as const).map((opcao) => {
+                  const ativo = genero === opcao;
+                  return (
+                    <button
+                      type="button"
+                      key={opcao}
+                      onClick={() => setGenero(opcao)}
+                      className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer ${
+                        ativo 
+                          ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20 shadow-sm' 
+                          : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300 hover:border-iba-green/50'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${ativo ? 'bg-iba-green' : 'bg-neutral-300 dark:bg-neutral-600'}`} />
+                      {opcao}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5 sm:gap-2">
@@ -606,7 +737,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Estado civil <span className="text-red-500">*</span></label>
               <select required value={estadoCivil} onChange={(e) => setEstadoCivil(e.target.value)} className={inputStyle}>
-                <option value="">Selecione…</option>
                 <option value="Solteiro(a)">Solteiro(a)</option>
                 <option value="Casado(a)">Casado(a)</option>
                 <option value="Divorciado(a)">Divorciado(a)</option>
@@ -615,7 +745,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             </div>
           </div>
 
-          {/* LINHA SIMÉTRICA PARA PAI E MÃE */}
+          {/* FILIAÇÃO SIMÉTRICA */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
             <div className="flex flex-col gap-1.5 sm:gap-2">
               <div className="flex justify-between items-center">
@@ -659,11 +789,11 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             </div>
           </div>
 
-          {/* FICHA DO CÔNJUGE COM GÊNERO APENAS MASCULINO/FEMININO */}
+          {/* FICHA DO CÔNJUGE */}
           {estadoCivil === 'Casado(a)' && (
-            <div className="mt-6 sm:mt-8 p-4 sm:p-8 bg-iba-cream/50 dark:bg-neutral-800/30 border-l-4 border-l-iba-green border border-iba-sand dark:border-neutral-800 rounded-2xl space-y-4 sm:space-y-6 animate-fadeIn">
+            <div className="mt-6 sm:mt-8 p-4 sm:p-8 bg-iba-cream/40 dark:bg-neutral-800/30 border-l-4 border-l-iba-green border border-iba-sand dark:border-neutral-800 rounded-2xl space-y-4 sm:space-y-6 animate-fadeIn">
               <div className="flex items-center gap-2">
-                <h4 className="text-sm sm:text-base font-bold text-iba-green tracking-tight">Ficha Cadastral do Cônjuge (Novo Cadastro Interligado)</h4>
+                <h4 className="text-sm sm:text-base font-bold text-iba-green tracking-tight">Ficha Cadastral do Cônjuge (Cadastro Interligado)</h4>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
@@ -685,22 +815,55 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                   {errorsByField.conjugeCpf && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeCpf}</span>}
                 </div>
 
+                {/* VÍNCULO DO CÔNJUGE */}
                 <div className="flex flex-col gap-1.5 sm:gap-2">
-                  <label className={labelStyle}>Situação Eclesiástica dela(e) <span className="text-red-500">*</span></label>
-                  <select required value={conjugeArrolamento} onChange={(e) => setConjugeArrolamento(e.target.value)} className={inputStyle}>
-                    <option value="">Selecione…</option>
-                    <option value="ADMISSÃO">Membro Ativo</option>
-                    <option value="FREQUENTADOR">Congregante</option>
-                  </select>
+                  <label className={labelStyle}>Vínculo do Cônjuge <span className="text-red-500">*</span></label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: 'Membro', val: 'ADMISSÃO' },
+                      { label: 'Congregante', val: 'FREQUENTADOR' }
+                    ].map((opt) => {
+                      const ativo = conjugeArrolamento === opt.val;
+                      return (
+                        <button
+                          type="button"
+                          key={opt.val}
+                          onClick={() => setConjugeArrolamento(opt.val)}
+                          className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            ativo 
+                              ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                              : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
+                {/* GÊNERO DO CÔNJUGE */}
                 <div className="flex flex-col gap-1.5 sm:gap-2">
                   <label className={labelStyle}>Gênero do Cônjuge <span className="text-red-500">*</span></label>
-                  <select required value={conjugeGenero} onChange={(e) => setConjugeGenero(e.target.value)} className={inputStyle}>
-                    <option value="">Selecione…</option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Feminino">Feminino</option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['Masculino', 'Feminino'] as const).map((opcao) => {
+                      const ativo = conjugeGenero === opcao;
+                      return (
+                        <button
+                          type="button"
+                          key={opcao}
+                          onClick={() => setConjugeGenero(opcao)}
+                          className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            ativo 
+                              ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                              : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                          }`}
+                        >
+                          {opcao}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5 sm:gap-2">
@@ -765,13 +928,28 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                   {errorsByField.conjugeEmail && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeEmail}</span>}
                 </div>
 
+                {/* BATISMO CÔNJUGE (COMEÇA DESMARCADO) */}
                 <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2 lg:col-span-3 border-t border-iba-sand dark:border-neutral-700 pt-4 mt-2">
                   <label className={labelStyle}>O Cônjuge já foi batizado? <span className="text-red-500">*</span></label>
-                  <select required value={conjugeBatizado} onChange={(e) => setConjugeBatizado(e.target.value)} className={inputStyle}>
-                    <option value="">Selecione…</option>
-                    <option value="Sim">Sim</option>
-                    <option value="Não">Não</option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-2 max-w-xs">
+                    {(['Sim', 'Não'] as const).map((opcao) => {
+                      const ativo = conjugeBatizado === opcao;
+                      return (
+                        <button
+                          type="button"
+                          key={opcao}
+                          onClick={() => setConjugeBatizado(opcao)}
+                          className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            ativo 
+                              ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                              : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                          }`}
+                        >
+                          {opcao}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {conjugeBatizado === 'Sim' && (
@@ -779,7 +957,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                     <div className="flex flex-col gap-1.5 sm:gap-2">
                       <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
                       <select required value={conjugeTipoBatismo} onChange={(e) => setConjugeTipoBatismo(e.target.value)} className={inputStyle}>
-                        <option value="">Selecione…</option>
                         <option value="Imersão">Imersão</option>
                         <option value="Aspersão">Aspersão</option>
                       </select>
@@ -820,20 +997,34 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           )}
         </div>
 
-        {/* SEÇÃO 2: NÚCLEO FAMILIAR E DEPENDENTES */}
+        {/* SEÇÃO 2: NÚCLEO FAMILIAR (COMEÇA DESMARCADO) */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">2</span>
             <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Núcleo Familiar e Dependentes</h3>
           </div>
 
-          <div className="flex flex-col gap-1.5 sm:gap-2 max-w-md">
+          <div className="flex flex-col gap-2 max-w-sm">
             <label className={labelStyle}>Possui filhos ou dependentes? <span className="text-red-500">*</span></label>
-            <select required value={possuiFilhos} onChange={(e) => setPossuiFilhos(e.target.value)} className={inputStyle}>
-              <option value="">Selecione…</option>
-              <option value="Sim">Sim</option>
-              <option value="Não">Não</option>
-            </select>
+            <div className="grid grid-cols-2 gap-2">
+              {(['Sim', 'Não'] as const).map((opcao) => {
+                const ativo = possuiFilhos === opcao;
+                return (
+                  <button
+                    type="button"
+                    key={opcao}
+                    onClick={() => setPossuiFilhos(opcao)}
+                    className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      ativo 
+                        ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                        : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    {opcao}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {possuiFilhos === 'Sim' && (
@@ -887,21 +1078,55 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                       {errorsByField[`filhoDataNasc_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataNasc_${idx}`]}</span>}
                     </div>
 
+                    {/* GÊNERO DO FILHO */}
                     <div className="flex flex-col gap-1.5">
                       <label className={labelStyle}>Gênero <span className="text-red-500">*</span></label>
-                      <select required value={filho.genero} onChange={(e) => atualizarFilho(idx, 'genero', e.target.value)} className={inputStyle}>
-                        <option value="">Selecione…</option>
-                        <option value="Masculino">Masculino</option>
-                        <option value="Feminino">Feminino</option>
-                      </select>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['Masculino', 'Feminino'] as const).map((opcao) => {
+                          const ativo = filho.genero === opcao;
+                          return (
+                            <button
+                              type="button"
+                              key={opcao}
+                              onClick={() => atualizarFilho(idx, 'genero', opcao)}
+                              className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                                ativo 
+                                  ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                                  : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                              }`}
+                            >
+                              {opcao}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
+                    {/* VÍNCULO DO FILHO */}
                     <div className="flex flex-col gap-1.5">
-                      <label className={labelStyle}>Situação Eclesiástica <span className="text-red-500">*</span></label>
-                      <select required value={filho.arrolamento} onChange={(e) => atualizarFilho(idx, 'arrolamento', e.target.value)} className={inputStyle}>
-                        <option value="FREQUENTADOR">Congregante</option>
-                        <option value="ADMISSÃO">Membro Ativo</option>
-                      </select>
+                      <label className={labelStyle}>Vínculo <span className="text-red-500">*</span></label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { label: 'Congregante', val: 'FREQUENTADOR' },
+                          { label: 'Membro', val: 'ADMISSÃO' }
+                        ].map((opt) => {
+                          const ativo = filho.arrolamento === opt.val;
+                          return (
+                            <button
+                              type="button"
+                              key={opt.val}
+                              onClick={() => atualizarFilho(idx, 'arrolamento', opt.val)}
+                              className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                                ativo 
+                                  ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                                  : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
@@ -938,13 +1163,28 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                       {errorsByField[`filhoEmail_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoEmail_${idx}`]}</span>}
                     </div>
 
+                    {/* BATISMO FILHO (COMEÇA DESMARCADO) */}
                     <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-3 border-t border-iba-sand/50 dark:border-neutral-800 pt-3 mt-1">
                       <label className={labelStyle}>O filho já foi batizado? <span className="text-red-500">*</span></label>
-                      <select required value={filho.foiBatizado} onChange={(e) => atualizarFilho(idx, 'foiBatizado', e.target.value)} className={inputStyle}>
-                        <option value="">Selecione…</option>
-                        <option value="Sim">Sim</option>
-                        <option value="Não">Não</option>
-                      </select>
+                      <div className="grid grid-cols-2 gap-2 max-w-xs">
+                        {(['Sim', 'Não'] as const).map((opcao) => {
+                          const ativo = filho.foiBatizado === opcao;
+                          return (
+                            <button
+                              type="button"
+                              key={opcao}
+                              onClick={() => atualizarFilho(idx, 'foiBatizado', opcao)}
+                              className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                                ativo 
+                                  ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                                  : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                              }`}
+                            >
+                              {opcao}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {filho.foiBatizado === 'Sim' && (
@@ -952,7 +1192,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                         <div className="flex flex-col gap-1.5">
                           <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
                           <select required value={filho.tipoBatismo} onChange={(e) => atualizarFilho(idx, 'tipoBatismo', e.target.value)} className={inputStyle}>
-                            <option value="">Selecione…</option>
                             <option value="Imersão">Imersão</option>
                             <option value="Aspersão">Aspersão</option>
                           </select>
@@ -995,49 +1234,86 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           )}
         </div>
 
-        {/* SEÇÃO 3: HISTÓRICO DE BATISMO (TITULAR) */}
+        {/* SEÇÃO 3: HISTÓRICO DE BATISMO (COMEÇA DESMARCADO) */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">3</span>
             <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">Histórico de Batismo</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            <div className="flex flex-col gap-1.5 sm:gap-2">
-              <label className={labelStyle}>Nome da Igreja do Batismo (Opcional)</label>
-              <input 
-                type="text" 
-                value={igrejaBatismo} 
-                onChange={(e) => setIgrejaBatismo(e.target.value)} 
-                placeholder="Onde você foi batizado (Opcional)" 
-                className={inputStyle} 
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5 sm:gap-2">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
-                <label className={labelStyle}>
-                  Data do Batismo {!batismoNaoRecordo && <span className="text-red-500">*</span>}
-                </label>
-                <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={batismoNaoRecordo} onChange={(e) => setBatismoNaoRecordo(e.target.checked)} className="rounded text-iba-green focus:ring-iba-green" />
-                  Não me recordo
-                </label>
-              </div>
-              <input 
-                type="text" 
-                required={!batismoNaoRecordo} 
-                disabled={batismoNaoRecordo} 
-                maxLength={10} 
-                placeholder={batismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
-                value={batismoNaoRecordo ? '' : dataBatismo} 
-                onChange={(e) => setDataBatismo(aplicarMascaraData(e.target.value))} 
-                onBlur={(e) => !batismoNaoRecordo && validarCampoEmTempoReal('dataBatismo', e.target.value)}
-                className={`${inputStyle} disabled:opacity-50 ${errorsByField.dataBatismo ? inputErrorStyle : ''}`} 
-              />
-              {errorsByField.dataBatismo && <span className="text-xs text-red-500 font-semibold">{errorsByField.dataBatismo}</span>}
+          <div className="flex flex-col gap-2 max-w-sm mb-5">
+            <label className={labelStyle}>Você já foi batizado? <span className="text-red-500">*</span></label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['Sim', 'Não'] as const).map((opcao) => {
+                const ativo = titularBatizado === opcao;
+                return (
+                  <button
+                    type="button"
+                    key={opcao}
+                    onClick={() => {
+                      setTitularBatizado(opcao);
+                      if (opcao === 'Não') {
+                        setIgrejaBatismo('');
+                        setDataBatismo('');
+                        setBatismoNaoRecordo(false);
+                        setErrorsByField(prev => ({ ...prev, dataBatismo: '' }));
+                      }
+                    }}
+                    className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      ativo 
+                        ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                        : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    {opcao}
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          {titularBatizado === 'Sim' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 animate-fadeIn pt-2 border-t border-iba-sand/50 dark:border-neutral-800">
+              <div className="flex flex-col gap-1.5 sm:gap-2">
+                <label className={labelStyle}>Nome da Igreja do Batismo (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={igrejaBatismo} 
+                  onChange={(e) => setIgrejaBatismo(e.target.value)} 
+                  placeholder="Onde você foi batizado (Opcional)" 
+                  className={inputStyle} 
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 sm:gap-2">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
+                  <label className={labelStyle}>
+                    Data do Batismo {!batismoNaoRecordo && <span className="text-red-500">*</span>}
+                  </label>
+                  <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" checked={batismoNaoRecordo} onChange={(e) => setBatismoNaoRecordo(e.target.checked)} className="rounded text-iba-green focus:ring-iba-green" />
+                    Não me recordo
+                  </label>
+                </div>
+                <input 
+                  type="text" 
+                  required={!batismoNaoRecordo} 
+                  disabled={batismoNaoRecordo} 
+                  maxLength={10} 
+                  placeholder={batismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
+                  value={batismoNaoRecordo ? '' : dataBatismo} 
+                  onChange={(e) => setDataBatismo(aplicarMascaraData(e.target.value))} 
+                  onBlur={(e) => !batismoNaoRecordo && validarCampoEmTempoReal('dataBatismo', e.target.value)}
+                  className={`${inputStyle} disabled:opacity-50 ${errorsByField.dataBatismo ? inputErrorStyle : ''}`} 
+                />
+                {errorsByField.dataBatismo && <span className="text-xs text-red-500 font-semibold">{errorsByField.dataBatismo}</span>}
+              </div>
+            </div>
+          ) : titularBatizado === 'Não' ? (
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 bg-iba-cream/30 dark:bg-neutral-800/30 p-3.5 rounded-xl border border-dashed border-iba-sand dark:border-neutral-700 animate-fadeIn">
+              Que bênção! Os campos de histórico de batismo foram desconsiderados para você.
+            </p>
+          ) : null}
         </div>
 
         {/* SEÇÃO 4: DOCUMENTAÇÕES E CONTATOS */}
@@ -1196,118 +1472,214 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
         </div>
 
-        {/* SEÇÃO 6: MINISTÉRIOS */}
+        {/* SEÇÃO 6: MINISTÉRIOS COM INTERACTIVE BENTO GRID */}
         {tipoFluxo === 'membro' && (
-          <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800 bg-iba-cream/30 dark:bg-neutral-800/10 space-y-5 sm:space-y-6">
+          <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800 bg-iba-cream/30 dark:bg-neutral-800/10 space-y-6">
             <div className="flex items-center gap-3">
               <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">
                 6
               </span>
-              <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">
-                Atuação Operacional e Ministérios
-              </h3>
+              <div>
+                <h3 className="text-neutral-900 dark:text-white text-base sm:text-lg font-bold tracking-tight">
+                  Atuação Operacional e Ministérios
+                </h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  Engajamento e participação nas atividades da igreja.
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5 sm:gap-2 max-w-md">
+            {/* CHOICE CARDS: FAZ PARTE? (COMEÇA DESMARCADO) */}
+            <div className="flex flex-col gap-2 max-w-sm">
               <label className={labelStyle}>
-                Você faz parte de algum ministério da 2IBA? <span className="text-red-500">*</span>
+                Você faz parte de algum ministério da 2IBA atualmente? <span className="text-red-500">*</span>
               </label>
-              <select 
-                required 
-                value={fazParteMinisterio} 
-                onChange={(e) => {
-                  setFazParteMinisterio(e.target.value);
-                  setQualMinisterioFazParte([]);
-                  setQuerParticiparMinisterio('');
-                  setQualMinisterioQuerParticipar([]);
-                }} 
-                className={inputStyle}
-              >
-                <option value="">Selecione…</option>
-                <option value="Sim">Sim</option>
-                <option value="Não">Não</option>
-              </select>
+              <div className="grid grid-cols-2 gap-2">
+                {(['Sim', 'Não'] as const).map((opcao) => {
+                  const ativo = fazParteMinisterio === opcao;
+                  return (
+                    <button
+                      type="button"
+                      key={opcao}
+                      onClick={() => {
+                        setFazParteMinisterio(opcao);
+                        setQualMinisterioFazParte([]);
+                        setQuerParticiparMinisterio(null);
+                        setQualMinisterioQuerParticipar([]);
+                      }}
+                      className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                        ativo 
+                          ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                          : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                      }`}
+                    >
+                      {opcao}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
+            {/* BENTO GRID: MINISTÉRIOS ATUAIS */}
             {fazParteMinisterio === 'Sim' && (
-              <div className="space-y-3 animate-fadeIn border-t border-iba-sand/60 dark:border-neutral-700 pt-4">
-                <label className={labelStyle}>
-                  De quais ministérios você participa atualmente? (Selecione um ou mais) <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3 pt-2">
-                  {MINISTERIOS.map((m) => {
-                    const selecionado = qualMinisterioFazParte.includes(m);
+              <div className="space-y-3 animate-fadeIn border-t border-iba-sand/60 dark:border-neutral-700 pt-5">
+                <div className="flex justify-between items-center">
+                  <label className={labelStyle}>
+                    Selecione seus ministérios de atuação (um ou mais) <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] font-bold text-iba-green bg-iba-green/10 px-2.5 py-0.5 rounded-full">
+                    {qualMinisterioFazParte.length} selecionado(s)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-2">
+                  {LISTA_MINISTERIOS.map((item) => {
+                    const selecionado = qualMinisterioFazParte.includes(item.nome);
                     return (
-                      <label 
-                        key={m} 
-                        onClick={() => toggleMinisterio(m, qualMinisterioFazParte, setQualMinisterioFazParte)}
-                        className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border cursor-pointer text-xs font-semibold transition-all select-none ${
-                          selecionado 
-                            ? 'border-iba-green bg-iba-green/10 text-iba-green dark:bg-iba-green/20 dark:text-white' 
-                            : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-700 dark:text-neutral-300 hover:border-iba-green/50'
+                      <div
+                        key={item.nome}
+                        onClick={() => toggleMinisterio(item.nome, qualMinisterioFazParte, setQualMinisterioFazParte)}
+                        className={`group relative p-4 rounded-2xl border transition-all duration-200 cursor-pointer select-none flex flex-col justify-between ${
+                          item.destaque ? 'sm:col-span-1' : ''
+                        } ${
+                          selecionado
+                            ? 'border-iba-green bg-iba-green/10 dark:bg-iba-green/20 shadow-md ring-2 ring-iba-green/30'
+                            : 'border-iba-sand/80 dark:border-neutral-800 bg-white dark:bg-iba-darkInput hover:border-iba-green/60 hover:shadow-sm hover:-translate-y-0.5'
                         }`}
                       >
-                        <input 
-                          type="checkbox" 
-                          checked={selecionado} 
-                          readOnly 
-                          className="rounded text-iba-green focus:ring-iba-green w-4 h-4 flex-none" 
-                        />
-                        <span>{m}</span>
-                      </label>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                            selecionado 
+                              ? 'bg-iba-green text-white' 
+                              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 group-hover:text-iba-green'
+                          }`}>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              {renderIconeMinisterio(item.icone)}
+                            </svg>
+                          </div>
+
+                          <span className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                            selecionado 
+                              ? 'border-iba-green bg-iba-green text-white' 
+                              : 'border-neutral-300 dark:border-neutral-600'
+                          }`}>
+                            {selecionado && (
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="mt-3">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-400 dark:text-neutral-400 block mb-0.5">
+                            {item.tag}
+                          </span>
+                          <h4 className={`text-xs sm:text-sm font-bold transition-colors ${
+                            selecionado ? 'text-iba-green dark:text-emerald-300' : 'text-neutral-800 dark:text-neutral-200'
+                          }`}>
+                            {item.nome}
+                          </h4>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
               </div>
             )}
 
+            {/* SE NÃO FAZ PARTE: QUER PARTICIPAR? (COMEÇA DESMARCADO) */}
             {fazParteMinisterio === 'Não' && (
-              <div className="space-y-4 sm:space-y-5 animate-fadeIn border-t border-iba-sand/60 dark:border-neutral-700 pt-4">
-                <div className="flex flex-col gap-1.5 sm:gap-2 max-w-md">
+              <div className="space-y-4 animate-fadeIn border-t border-iba-sand/60 dark:border-neutral-700 pt-5">
+                <div className="flex flex-col gap-2 max-w-sm">
                   <label className={labelStyle}>
-                    Você deseja fazer parte de algum ministério? <span className="text-red-500">*</span>
+                    Você gostaria de integrar algum ministério? <span className="text-red-500">*</span>
                   </label>
-                  <select 
-                    required 
-                    value={querParticiparMinisterio} 
-                    onChange={(e) => {
-                      setQuerParticiparMinisterio(e.target.value);
-                      setQualMinisterioQuerParticipar([]);
-                    }} 
-                    className={inputStyle}
-                  >
-                    <option value="">Selecione…</option>
-                    <option value="Sim">Sim</option>
-                    <option value="Não">Não</option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['Sim', 'Não'] as const).map((opcao) => {
+                      const ativo = querParticiparMinisterio === opcao;
+                      return (
+                        <button
+                          type="button"
+                          key={opcao}
+                          onClick={() => {
+                            setQuerParticiparMinisterio(opcao);
+                            setQualMinisterioQuerParticipar([]);
+                          }}
+                          className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            ativo 
+                              ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                              : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                          }`}
+                        >
+                          {opcao}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {querParticiparMinisterio === 'Sim' && (
                   <div className="space-y-3 animate-fadeIn pt-2">
-                    <label className={labelStyle}>
-                      Quais ministérios você gostaria de integrar? (Selecione um ou mais) <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3 pt-2">
-                      {MINISTERIOS.map((m) => {
-                        const selecionado = qualMinisterioQuerParticipar.includes(m);
+                    <div className="flex justify-between items-center">
+                      <label className={labelStyle}>
+                        Quais ministérios você gostaria de conhecer e participar? <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[11px] font-bold text-iba-green bg-iba-green/10 px-2.5 py-0.5 rounded-full">
+                        {qualMinisterioQuerParticipar.length} selecionado(s)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-2">
+                      {LISTA_MINISTERIOS.map((item) => {
+                        const selecionado = qualMinisterioQuerParticipar.includes(item.nome);
                         return (
-                          <label 
-                            key={m} 
-                            onClick={() => toggleMinisterio(m, qualMinisterioQuerParticipar, setQualMinisterioQuerParticipar)}
-                            className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border cursor-pointer text-xs font-semibold transition-all select-none ${
-                              selecionado 
-                                ? 'border-iba-green bg-iba-green/10 text-iba-green dark:bg-iba-green/20 dark:text-white' 
-                                : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-700 dark:text-neutral-300 hover:border-iba-green/50'
+                          <div
+                            key={item.nome}
+                            onClick={() => toggleMinisterio(item.nome, qualMinisterioQuerParticipar, setQualMinisterioQuerParticipar)}
+                            className={`group relative p-4 rounded-2xl border transition-all duration-200 cursor-pointer select-none flex flex-col justify-between ${
+                              item.destaque ? 'sm:col-span-1' : ''
+                            } ${
+                              selecionado
+                                ? 'border-iba-green bg-iba-green/10 dark:bg-iba-green/20 shadow-md ring-2 ring-iba-green/30'
+                                : 'border-iba-sand/80 dark:border-neutral-800 bg-white dark:bg-iba-darkInput hover:border-iba-green/60 hover:shadow-sm hover:-translate-y-0.5'
                             }`}
                           >
-                            <input 
-                              type="checkbox" 
-                              checked={selecionado} 
-                              readOnly 
-                              className="rounded text-iba-green focus:ring-iba-green w-4 h-4 flex-none" 
-                            />
-                            <span>{m}</span>
-                          </label>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                                selecionado 
+                                  ? 'bg-iba-green text-white' 
+                                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 group-hover:text-iba-green'
+                              }`}>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  {renderIconeMinisterio(item.icone)}
+                                </svg>
+                              </div>
+
+                              <span className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                                selecionado 
+                                  ? 'border-iba-green bg-iba-green text-white' 
+                                  : 'border-neutral-300 dark:border-neutral-600'
+                              }`}>
+                                {selecionado && (
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </span>
+                            </div>
+
+                            <div className="mt-3">
+                              <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-400 dark:text-neutral-400 block mb-0.5">
+                                {item.tag}
+                              </span>
+                              <h4 className={`text-xs sm:text-sm font-bold transition-colors ${
+                                selecionado ? 'text-iba-green dark:text-emerald-300' : 'text-neutral-800 dark:text-neutral-200'
+                              }`}>
+                                {item.nome}
+                              </h4>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -1375,38 +1747,8 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
         </div>
       </form>
 
-      {/* FAQ ACCORDION */}
-      <div className="bg-white dark:bg-iba-darkCard border border-iba-sand dark:border-neutral-800 rounded-2xl p-5 sm:p-8 shadow-md space-y-4 sm:space-y-5 transition-all duration-300">
-        <h4 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white pb-2.5 sm:pb-3 border-b border-iba-sand/50 dark:border-neutral-800 flex items-center gap-2">
-          Dúvidas e Perguntas Frequentes
-        </h4>
-        <div className="space-y-2.5 sm:space-y-3">
-          {FAQS.map((faq) => {
-            const isAberto = faqAberto === faq.id;
-            return (
-              <div key={faq.id} className="border border-iba-sand dark:border-neutral-800 rounded-xl overflow-hidden transition-all bg-iba-cream/20 dark:bg-neutral-800/20">
-                <button
-                  type="button"
-                  onClick={() => setFaqAberto(isAberto ? null : faq.id)}
-                  className="w-full text-left p-3.5 sm:p-5 flex justify-between items-center gap-3 hover:bg-iba-cream/50 dark:hover:bg-neutral-800/40 transition-colors cursor-pointer"
-                >
-                  <span className="font-bold text-xs sm:text-sm text-neutral-800 dark:text-neutral-200">{faq.pergunta}</span>
-                  <span className="p-1.5 sm:p-2 bg-white dark:bg-neutral-800 border border-iba-sand dark:border-neutral-700 rounded-lg text-neutral-500 flex-none shadow-sm">
-                    <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${isAberto ? 'rotate-180 text-iba-green' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </span>
-                </button>
-                {isAberto && (
-                  <div className="px-4 pb-4 sm:px-5 sm:pb-5 text-[11px] sm:text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed border-t border-iba-sand/40 dark:border-neutral-800/60 pt-3 sm:pt-4 animate-fadeIn">
-                    {faq.resposta}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* FAQ RENDERIZADO NO FINAL DO FORMULÁRIO */}
+      {renderFaqSection()}
     </div>
   );
 }
