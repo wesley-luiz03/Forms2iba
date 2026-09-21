@@ -37,19 +37,19 @@ interface MinisterioInfo {
 }
 
 const LISTA_MINISTERIOS: MinisterioInfo[] = [
-  { nome: "Ministério Administrativo", tag: "Gestão e Estrutura", icone: "briefcase" },
+  { nome: "Ministério de Administração", tag: "Gestão e Estrutura", icone: "briefcase" },
   { nome: "Ministério da 3ª idade", tag: "Cuidado e Maturidade", icone: "sun" },
-  { nome: "Ministério da família", tag: "Lares e Casais", icone: "home", destaque: true },
-  { nome: "Ministério da juventude", tag: "Jovens e Adolescentes", icone: "zap" },
-  { nome: "Ministério de ação social", tag: "Assistência e Amor", icone: "heart" },
-  { nome: "Ministério de Artes Gráficas", tag: "Design e Criatividade", icone: "palette" },
-  { nome: "Ministério de comunicação", tag: "Mídias e Transmissão", icone: "radio" },
+  { nome: "Ministério da Família", tag: "Lares e Casais", icone: "home", destaque: true },
+  { nome: "Ministério da Juventude", tag: "Jovens e Adolescentes", icone: "zap" },
+  { nome: "Ministério de Ação social", tag: "Assistência e Amor", icone: "heart" },
+  { nome: "Ministério Gráfico", tag: "Design e Criatividade", icone: "palette" },
+  { nome: "Ministério de Comunicação", tag: "Mídias e Transmissão", icone: "radio" },
   { nome: "Ministério de Educação Religiosa", tag: "Ensino Bíblico e EBD", icone: "book", destaque: true },
-  { nome: "Ministério de evangelismo e missões", tag: "Expansão e Ide", icone: "compass", destaque: true },
+  { nome: "Ministério de Evangelismo e Missões", tag: "Expansão e Ide", icone: "compass", destaque: true },
   { nome: "Ministério de Intercessão", tag: "Oração Contínua", icone: "flame" },
   { nome: "Ministério de Louvor", tag: "Música e Adoração", icone: "music" },
   { nome: "Ministério Diaconal", tag: "Serviço e Apoio aos Cultos", icone: "users" },
-  { nome: "Ministério infantil", tag: "Ensino para Crianças", icone: "smile" },
+  { nome: "Ministério Infantil", tag: "Ensino para Crianças", icone: "smile" },
   { nome: "Ministério Mãos de Deus", tag: "Acolhimento e Serviço", icone: "shield" },
 ];
 
