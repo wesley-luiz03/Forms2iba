@@ -37,14 +37,18 @@ interface MinisterioInfo {
 }
 
 const LISTA_MINISTERIOS: MinisterioInfo[] = [
+  { nome: "Ministério Administrativo", tag: "Gestão e Estrutura", icone: "briefcase" },
   { nome: "Ministério da 3ª idade", tag: "Cuidado e Maturidade", icone: "sun" },
   { nome: "Ministério da família", tag: "Lares e Casais", icone: "home", destaque: true },
   { nome: "Ministério da juventude", tag: "Jovens e Adolescentes", icone: "zap" },
   { nome: "Ministério de ação social", tag: "Assistência e Amor", icone: "heart" },
+  { nome: "Ministério de Artes Gráficas", tag: "Design e Criatividade", icone: "palette" },
   { nome: "Ministério de comunicação", tag: "Mídias e Transmissão", icone: "radio" },
+  { nome: "Ministério de Educação Religiosa", tag: "Ensino Bíblico e EBD", icone: "book", destaque: true },
   { nome: "Ministério de evangelismo e missões", tag: "Expansão e Ide", icone: "compass", destaque: true },
   { nome: "Ministério de Intercessão", tag: "Oração Contínua", icone: "flame" },
   { nome: "Ministério de Louvor", tag: "Música e Adoração", icone: "music" },
+  { nome: "Ministério Diaconal", tag: "Serviço e Apoio aos Cultos", icone: "users" },
   { nome: "Ministério infantil", tag: "Ensino para Crianças", icone: "smile" },
   { nome: "Ministério Mãos de Deus", tag: "Acolhimento e Serviço", icone: "shield" },
 ];
@@ -74,6 +78,8 @@ const FAQS = [
 
 const renderIconeMinisterio = (icone: string) => {
   switch (icone) {
+    case 'briefcase':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />;
     case 'sun':
       return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />;
     case 'home':
@@ -82,14 +88,20 @@ const renderIconeMinisterio = (icone: string) => {
       return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />;
     case 'heart':
       return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />;
+    case 'palette':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4 11.042 11.042 0 014.28-8.8A9.98 9.98 0 0112 6c4.418 0 8 3.582 8 8 0 1.657-1.343 3-3 3h-2a2 2 0 00-2 2c0 1.105-.895 2-2 2H7z" />;
     case 'radio':
       return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.636 8.464a5 5 0 000 7.072m-2.828-9.9a9 9 0 000 12.728M12 12h.01" />;
+    case 'book':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />;
     case 'compass':
       return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />;
     case 'flame':
       return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343a7.975 7.975 0 012.344 5.657 7.975 7.975 0 01-2.343 5.657z" />;
     case 'music':
       return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />;
+    case 'users':
+      return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />;
     case 'smile':
       return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />;
     default:
