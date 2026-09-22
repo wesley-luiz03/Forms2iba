@@ -19,11 +19,10 @@ export function gerarRelatorioPdfLideranca(dados: DadosRelatorio) {
     format: 'a4',
   });
 
-  const verdePrincipal = [85, 128, 75]; // #55804B (Cor oficial 2IBA)
+  const verdePrincipal = [85, 128, 75];
   const cinzaEscuro = [40, 40, 40];
-  const cinzaClaro = [245, 245, 245];
 
-  // 1. Cabeçalho Institucional
+  // Cabeçalho
   doc.setFillColor(verdePrincipal[0], verdePrincipal[1], verdePrincipal[2]);
   doc.rect(0, 0, 210, 24, 'F');
 
@@ -40,7 +39,7 @@ export function gerarRelatorioPdfLideranca(dados: DadosRelatorio) {
   const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   doc.text(`Emissão: ${dataAtual} às ${horaAtual}`, 196, 18, { align: 'right' });
 
-  // 2. Quadro Resumo Geral (Totalizadores)
+  // Resumo Geral
   doc.setTextColor(cinzaEscuro[0], cinzaEscuro[1], cinzaEscuro[2]);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
@@ -66,12 +65,11 @@ export function gerarRelatorioPdfLideranca(dados: DadosRelatorio) {
       fontSize: 9,
     },
     styles: { fontSize: 8.5, cellPadding: 2.5 },
-    alternateRowStyles: { fillColor: [248, 248, 248] },
   });
 
   let posY = (doc as any).lastAutoTable.finalY + 10;
 
-  // 3. Distribuição por Faixa Etária
+  // Faixas Etárias
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('2. DISTRIBUIÇÃO ETÁRIA', 14, posY);
@@ -88,12 +86,11 @@ export function gerarRelatorioPdfLideranca(dados: DadosRelatorio) {
       fontSize: 9,
     },
     styles: { fontSize: 8.5, cellPadding: 2.5 },
-    alternateRowStyles: { fillColor: [248, 248, 248] },
   });
 
   posY = (doc as any).lastAutoTable.finalY + 10;
 
-  // 4. Distribuição Territorial (Cidades)
+  // Cidades
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('3. DISTRIBUIÇÃO TERRITORIAL (TOP CIDADES)', 14, posY);
@@ -104,24 +101,22 @@ export function gerarRelatorioPdfLideranca(dados: DadosRelatorio) {
     body: dados.rankingCidades.map((c) => [c.nome, c.qtd.toString(), pct(c.qtd)]),
     theme: 'grid',
     headStyles: {
-      fillColor: [2, 132, 199], // Tom azul
+      fillColor: [2, 132, 199],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
       fontSize: 9,
     },
     styles: { fontSize: 8.5, cellPadding: 2.5 },
-    alternateRowStyles: { fillColor: [248, 248, 248] },
   });
 
   posY = (doc as any).lastAutoTable.finalY + 10;
 
-  // Quebra para a segunda página se necessário para caber os ministérios
   if (posY > 220) {
     doc.addPage();
     posY = 20;
   }
 
-  // 5. Atuação nos Ministérios
+  // Ministérios
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('4. QUADRO DE ATUAÇÃO MINISTERIAL', 14, posY);
@@ -140,11 +135,10 @@ export function gerarRelatorioPdfLideranca(dados: DadosRelatorio) {
       fontSize: 9,
     },
     styles: { fontSize: 8.5, cellPadding: 2.5 },
-    alternateRowStyles: { fillColor: [248, 248, 248] },
   });
+// Rodapé em todas as páginas
+  const totalPaginas = (doc as any).internal.getNumberOfPages?.() || (doc.internal.pages.length - 1) || 1;
 
-  // 6. Rodapé em todas as páginas
-  const totalPaginas = doc.getNumberOfPages();
   for (let i = 1; i <= totalPaginas; i++) {
     doc.setPage(i);
     doc.setFont('helvetica', 'normal');
