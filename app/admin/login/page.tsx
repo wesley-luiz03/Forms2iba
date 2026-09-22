@@ -15,21 +15,34 @@ export default function AdminLoginPage() {
     setError(null);
 
     const user = identificador.trim().toLowerCase();
-    
-    if ((user === 'wesley2iba' || user === '2ibaadmin') && password === '#soDeussabe') {
+
+    // 1. Acesso Completo: Desenvolvedor / Administrador
+    if (user === 'wesley2iba' && password === '#soDeussabe') {
       localStorage.setItem('dev_authenticated', 'true');
+      localStorage.setItem('user_role', 'admin');
       document.cookie = "dev_authenticated=true; path=/; max-age=86400; SameSite=Lax";
+      document.cookie = "user_role=admin; path=/; max-age=86400; SameSite=Lax";
       window.location.href = '/admin';
-    } else {
-      setError('Credenciais inválidas. Verifique o usuário e a senha.');
-      setLoading(false);
+      return;
     }
+
+    // 2. Acesso Exclusivo à Liderança (Apenas Dashboards)
+    if (user === '2ibadmin' && password === '#soDeussabe') {
+      localStorage.setItem('dev_authenticated', 'true');
+      localStorage.setItem('user_role', 'viewer');
+      document.cookie = "dev_authenticated=true; path=/; max-age=86400; SameSite=Lax";
+      document.cookie = "user_role=viewer; path=/; max-age=86400; SameSite=Lax";
+      window.location.href = '/admin';
+      return;
+    }
+
+    setError('Credenciais inválidas. Verifique o usuário e a senha informados.');
+    setLoading(false);
   };
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 font-sans bg-iba-cream dark:bg-iba-darkBg">
       <div className="max-w-md w-full bg-white dark:bg-iba-darkCard border border-iba-sand dark:border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-6 animate-fadeIn">
-        {/* LOGO CIRCULAR VERDE */}
         <div className="w-24 h-24 sm:w-28 sm:h-28 mx-auto rounded-full bg-white dark:bg-neutral-800 shadow-md border-2 border-iba-sand flex items-center justify-center p-2 overflow-hidden">
           <img
             src="/logo-2iba.png"
@@ -43,10 +56,10 @@ export default function AdminLoginPage() {
             2ª Igreja Batista de Areias
           </span>
           <h1 className="text-2xl font-bold font-display text-neutral-900 dark:text-white">
-            Acesso do Desenvolvedor
+            Painel da Igreja
           </h1>
           <p className="text-xs text-neutral-500 dark:text-neutral-400">
-            Digite suas credenciais para gerenciar os cadastros.
+            Digite suas credenciais autorizadas para entrar.
           </p>
         </div>
 
@@ -66,7 +79,7 @@ export default function AdminLoginPage() {
               required
               value={identificador}
               onChange={(e) => setIdentificador(e.target.value)}
-              placeholder="wesley2iba"
+              placeholder="Digite seu usuário"
               className="w-full border border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-900 dark:text-white rounded-xl px-4 py-3 text-xs outline-none focus:border-iba-green focus:ring-2 focus:ring-iba-green/20"
             />
           </div>
