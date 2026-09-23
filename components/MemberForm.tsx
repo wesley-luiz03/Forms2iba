@@ -12,7 +12,7 @@ interface Filho {
   telefone: string;
   email: string;
   emailNaoSeAplica: boolean;
-  foiBatizado: string; // '' | 'Sim' | 'Não'
+  foiBatizado: string;
   tipoBatismo: string;
   igrejaBatismo: string;
   dataBatismo: string;
@@ -37,12 +37,12 @@ interface MinisterioInfo {
 }
 
 const LISTA_MINISTERIOS: MinisterioInfo[] = [
-  { nome: "Ministério de Administração", tag: "Gestão e Estrutura", icone: "briefcase" },
+  { nome: "Ministério Administrativo", tag: "Gestão e Estrutura", icone: "briefcase" },
   { nome: "Ministério da 3ª idade", tag: "Cuidado e Maturidade", icone: "sun" },
   { nome: "Ministério da Família", tag: "Lares e Casais", icone: "home", destaque: true },
   { nome: "Ministério da Juventude", tag: "Jovens e Adolescentes", icone: "zap" },
   { nome: "Ministério de Ação social", tag: "Assistência e Amor", icone: "heart" },
-  { nome: "Ministério Gráfico", tag: "Design e Criatividade", icone: "palette" },
+  { nome: "Ministério de Artes Gráficas", tag: "Design e Criatividade", icone: "palette" },
   { nome: "Ministério de Comunicação", tag: "Mídias e Transmissão", icone: "radio" },
   { nome: "Ministério de Educação Religiosa", tag: "Ensino Bíblico e EBD", icone: "book", destaque: true },
   { nome: "Ministério de Evangelismo e Missões", tag: "Expansão e Ide", icone: "compass", destaque: true },
@@ -61,8 +61,8 @@ const FAQS = [
   },
   {
     id: 2,
-    pergunta: "Por que os dados do meu cônjuge e filhos são criados sozinhos?",
-    resposta: "Para simplificar o processo! Nosso sistema analisa os dados inseridos e ramifica a criação individual dos cadastros no banco de dados, mantendo toda a árvore familiar perfeitamente conectada para a secretaria."
+    pergunta: "Por que os dados do meu cônjuge e filhos são vinculados à minha ficha?",
+    resposta: "Para garantir a conexão e integridade da sua família na secretaria. Cada membro da família com CPF ou que deseje informar seus próprios ministérios também pode preencher sua ficha individual a qualquer momento sem bloqueios."
   },
   {
     id: 3,
@@ -109,7 +109,6 @@ const renderIconeMinisterio = (icone: string) => {
   }
 };
 
-// --- FUNÇÕES DE MÁSCARA E VALIDAÇÃO ---
 const validarCPF = (cpf: string): boolean => {
   if (!cpf) return true;
   const cleanCpf = cpf.replace(/\D/g, '');
@@ -221,7 +220,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [conjugePai, setConjugePai] = useState('');
   const [conjugePaiNaoConsta, setConjugePaiNaoConsta] = useState(false);
   const [conjugeMae, setConjugeMae] = useState('');
-  // Batismo cônjuge -> Começa desmarcado (null)
   const [conjugeBatizado, setConjugeBatizado] = useState<'Sim' | 'Não' | null>(null);
   const [conjugeTipoBatismo, setConjugeTipoBatismo] = useState('Imersão');
   const [conjugeIgrejaBatismo, setConjugeIgrejaBatismo] = useState('');
@@ -231,7 +229,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [conjugeDataUniao, setConjugeDataUniao] = useState('');
 
   // --- ESTADOS DOS FILHOS ---
-  // Possui filhos -> Começa desmarcado (null)
   const [possuiFilhos, setPossuiFilhos] = useState<'Sim' | 'Não' | null>(null);
   const [filhos, setFilhos] = useState<Filho[]>([
     { nome: '', cpf: '', dataNascimento: '', genero: 'Masculino', telefone: '', email: '', emailNaoSeAplica: false, foiBatizado: '', tipoBatismo: 'Imersão', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }
@@ -285,7 +282,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     }
   }, [cep]);
 
-  // MÁSCARAS
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 8) value = value.slice(0, 8);
@@ -478,6 +474,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     ejecutarEnvioSupabase();
   }
 
+  // ENVIO REESTRUTURADO (OPÇÃO A): Salva apenas 1 registro único do Titular
   async function ejecutarEnvioSupabase() {
     setLoading(true);
     const supabase = createClient();
@@ -492,21 +489,49 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
 
     const emailFinal = emailNaoSeAplica ? 'NÃO SE APLICA' : email;
 
+    // Constrói o payload com dados familiares guardados como metadados aninhados
     const payloadMembro = {
-      nome, genero, data_nascimento: formatarParaISO(dataNascimento),
-      estado_civil: estadoCivil || 'Não informado', cpf: cpf || null, celular, email: emailFinal,
-      cep, endereco, numero, complemento, bairro, cidade, uf,
-      rg: rg || null, escolaridade: escolaridade || 'Não informado', tipo_sanguineo: tipoSanguineo || null,
-      eh_doador: isDoador || null, naturalidade: cidadeNatural && estadoNatural ? `${cidadeNatural} - ${estadoNatural}` : null, 
-      nome_pai: paiNaoConsta ? 'NÃO CONSTA' : nomePai, nome_mae: nomeMae, data_batismo: batismoFinal,
+      nome, 
+      genero, 
+      data_nascimento: formatarParaISO(dataNascimento),
+      estado_civil: estadoCivil || 'Não informado', 
+      cpf: cpf || null, 
+      celular, 
+      email: emailFinal,
+      cep, 
+      endereco, 
+      numero, 
+      complemento, 
+      bairro, 
+      cidade, 
+      uf,
+      rg: rg || null, 
+      escolaridade: escolaridade || 'Não informado', 
+      tipo_sanguineo: tipoSanguineo || null,
+      eh_doador: isDoador || null, 
+      naturalidade: cidadeNatural && estadoNatural ? `${cidadeNatural} - ${estadoNatural}` : null, 
+      nome_pai: paiNaoConsta ? 'NÃO CONSTA' : nomePai, 
+      nome_mae: nomeMae, 
+      data_batismo: batismoFinal,
       arrolamento: arrolamentoCalculado,
       dados_familiares: {
         conjugeCompleto: estadoCivil === 'Casado(a)' ? {
-          nome: conjugeNome, genero: conjugeGenero, dataNascimento: formatarParaISO(conjugeNascimento),
-          cpf: conjugeCpf || null, rg: conjugeRg || null, orgaoExpedidor: conjugeOrgao || null,
-          celular: conjugeCelular, email: conjugeEmailNaoSeAplica ? 'NÃO SE APLICA' : conjugeEmail, escolaridade: conjugeEscolaridade,
-          tipoSanguineo: conjugeSangue, isDoador: conjugeDoador, nomePai: conjugePaiNaoConsta ? 'NÃO CONSTA' : conjugePai,
-          nomeMae: conjugeMae, foiBatizado: conjugeBatizado || 'Não informado', tipoBatismo: conjugeTipoBatismo, igrejaBatismo: conjugeIgrejaBatismo,
+          nome: conjugeNome, 
+          genero: conjugeGenero, 
+          dataNascimento: formatarParaISO(conjugeNascimento),
+          cpf: conjugeCpf || null, 
+          rg: conjugeRg || null, 
+          orgaoExpedidor: conjugeOrgao || null,
+          celular: conjugeCelular, 
+          email: conjugeEmailNaoSeAplica ? 'NÃO SE APLICA' : conjugeEmail, 
+          escolaridade: conjugeEscolaridade,
+          tipoSanguineo: conjugeSangue, 
+          isDoador: conjugeDoador, 
+          nomePai: conjugePaiNaoConsta ? 'NÃO CONSTA' : conjugePai,
+          nomeMae: conjugeMae, 
+          foiBatizado: conjugeBatizado || 'Não informado', 
+          tipoBatismo: conjugeTipoBatismo, 
+          igrejaBatismo: conjugeIgrejaBatismo,
           dataBatismo: conjugeBatismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(conjugeDataBatismo),
           arrolamento: conjugeArrolamento
         } : null,
@@ -519,7 +544,9 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
         })) : []
       },
       campos_extra: {
-        ...respostasCustomizadas, orgao_expedidor: orgaoExpedidor || null, ponto_referencia: pontoReferencia || null,
+        ...respostasCustomizadas, 
+        orgao_expedidor: orgaoExpedidor || null, 
+        ponto_referencia: pontoReferencia || null,
         foi_batizado: titularBatizado,
         igreja_batismo: titularBatizado === 'Sim' ? (igrejaBatismo || null) : null, 
         faz_parte_ministerio: tipoFluxo === 'membro' ? fazParteMinisterio : null,
@@ -529,6 +556,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
       }
     };
 
+    // Insere exclusivamente a ficha do Titular
     const { error: insError } = await supabase.from('membros').insert(payloadMembro);
     
     if (insError) { 
@@ -547,7 +575,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     router.push('/sucesso');
   }
 
-  // --- COMPONENTE COMPARTILHADO DE FAQ ---
   const renderFaqSection = () => (
     <div className="bg-white/80 dark:bg-iba-darkCard/80 backdrop-blur-md border border-iba-sand/80 dark:border-neutral-800 rounded-2xl p-5 sm:p-8 shadow-sm space-y-4 sm:space-y-5 transition-all duration-300">
       <div className="flex items-center gap-2.5 pb-2.5 sm:pb-3 border-b border-iba-sand/50 dark:border-neutral-800">
@@ -585,7 +612,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     </div>
   );
 
-  // --- SELETOR DE FLUXO INICIAL ---
   if (!tipoFluxo) {
     return (
       <div className="w-full max-w-[1400px] mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8 space-y-8 animate-fadeIn font-sans">
@@ -608,7 +634,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-2 sm:pt-4 max-w-4xl mx-auto">
-            {/* Card Congregante */}
             <button
               type="button"
               onClick={() => setTipoFluxo('congregante')}
@@ -627,7 +652,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
               </p>
             </button>
 
-            {/* Card Membro */}
             <button
               type="button"
               onClick={() => setTipoFluxo('membro')}
@@ -648,7 +672,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
         </div>
 
-        {/* DÚVIDAS E PERGUNTAS FREQUENTES */}
         {renderFaqSection()}
       </div>
     );
@@ -660,7 +683,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
 
   return (
     <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6 font-sans overflow-x-hidden">
-      {/* Banner Superior com Troca de Modo */}
       <div className="bg-white/80 dark:bg-iba-darkCard/80 backdrop-blur-md border border-iba-sand dark:border-neutral-800 rounded-2xl p-3.5 sm:p-4 flex justify-between items-center text-xs shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full overflow-hidden border border-iba-sand bg-white flex items-center justify-center p-0.5 flex-none shadow-sm">
@@ -706,7 +728,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
               <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Digite seu nome completo" className={inputStyle} />
             </div>
 
-            {/* CHOICE CARDS: GÊNERO */}
             <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className={labelStyle}>Gênero <span className="text-red-500">*</span></label>
               <div className="grid grid-cols-2 gap-2">
@@ -757,7 +778,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             </div>
           </div>
 
-          {/* FILIAÇÃO SIMÉTRICA */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
             <div className="flex flex-col gap-1.5 sm:gap-2">
               <div className="flex justify-between items-center">
@@ -801,11 +821,11 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             </div>
           </div>
 
-          {/* FICHA DO CÔNJUGE */}
+          {/* FICHA DO CÔNJUGE (Salva dentro de dados_familiares) */}
           {estadoCivil === 'Casado(a)' && (
             <div className="mt-6 sm:mt-8 p-4 sm:p-8 bg-iba-cream/40 dark:bg-neutral-800/30 border-l-4 border-l-iba-green border border-iba-sand dark:border-neutral-800 rounded-2xl space-y-4 sm:space-y-6 animate-fadeIn">
               <div className="flex items-center gap-2">
-                <h4 className="text-sm sm:text-base font-bold text-iba-green tracking-tight">Ficha Cadastral do Cônjuge (Cadastro Interligado)</h4>
+                <h4 className="text-sm sm:text-base font-bold text-iba-green tracking-tight">Ficha Cadastral do Cônjuge (Vínculo Familiar)</h4>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
@@ -827,7 +847,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                   {errorsByField.conjugeCpf && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeCpf}</span>}
                 </div>
 
-                {/* VÍNCULO DO CÔNJUGE */}
                 <div className="flex flex-col gap-1.5 sm:gap-2">
                   <label className={labelStyle}>Vínculo do Cônjuge <span className="text-red-500">*</span></label>
                   <div className="grid grid-cols-2 gap-2">
@@ -854,7 +873,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                   </div>
                 </div>
 
-                {/* GÊNERO DO CÔNJUGE */}
                 <div className="flex flex-col gap-1.5 sm:gap-2">
                   <label className={labelStyle}>Gênero do Cônjuge <span className="text-red-500">*</span></label>
                   <div className="grid grid-cols-2 gap-2">
@@ -940,7 +958,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                   {errorsByField.conjugeEmail && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeEmail}</span>}
                 </div>
 
-                {/* BATISMO CÔNJUGE (COMEÇA DESMARCADO) */}
                 <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2 lg:col-span-3 border-t border-iba-sand dark:border-neutral-700 pt-4 mt-2">
                   <label className={labelStyle}>O Cônjuge já foi batizado? <span className="text-red-500">*</span></label>
                   <div className="grid grid-cols-2 gap-2 max-w-xs">
@@ -1009,7 +1026,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           )}
         </div>
 
-        {/* SEÇÃO 2: NÚCLEO FAMILIAR (COMEÇA DESMARCADO) */}
+        {/* SEÇÃO 2: NÚCLEO FAMILIAR (Salvo dentro de dados_familiares) */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">2</span>
@@ -1090,7 +1107,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                       {errorsByField[`filhoDataNasc_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataNasc_${idx}`]}</span>}
                     </div>
 
-                    {/* GÊNERO DO FILHO */}
                     <div className="flex flex-col gap-1.5">
                       <label className={labelStyle}>Gênero <span className="text-red-500">*</span></label>
                       <div className="grid grid-cols-2 gap-2">
@@ -1114,7 +1130,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                       </div>
                     </div>
 
-                    {/* VÍNCULO DO FILHO */}
                     <div className="flex flex-col gap-1.5">
                       <label className={labelStyle}>Vínculo <span className="text-red-500">*</span></label>
                       <div className="grid grid-cols-2 gap-2">
@@ -1175,7 +1190,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                       {errorsByField[`filhoEmail_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoEmail_${idx}`]}</span>}
                     </div>
 
-                    {/* BATISMO FILHO (COMEÇA DESMARCADO) */}
                     <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-3 border-t border-iba-sand/50 dark:border-neutral-800 pt-3 mt-1">
                       <label className={labelStyle}>O filho já foi batizado? <span className="text-red-500">*</span></label>
                       <div className="grid grid-cols-2 gap-2 max-w-xs">
@@ -1246,7 +1260,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           )}
         </div>
 
-        {/* SEÇÃO 3: HISTÓRICO DE BATISMO (COMEÇA DESMARCADO) */}
+        {/* SEÇÃO 3: HISTÓRICO DE BATISMO */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">3</span>
@@ -1484,7 +1498,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           </div>
         </div>
 
-        {/* SEÇÃO 6: MINISTÉRIOS COM INTERACTIVE BENTO GRID */}
+        {/* SEÇÃO 6: MINISTÉRIOS */}
         {tipoFluxo === 'membro' && (
           <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800 bg-iba-cream/30 dark:bg-neutral-800/10 space-y-6">
             <div className="flex items-center gap-3">
@@ -1501,7 +1515,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
               </div>
             </div>
 
-            {/* CHOICE CARDS: FAZ PARTE? (COMEÇA DESMARCADO) */}
             <div className="flex flex-col gap-2 max-w-sm">
               <label className={labelStyle}>
                 Você faz parte de algum ministério da 2IBA atualmente? <span className="text-red-500">*</span>
@@ -1532,12 +1545,11 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
               </div>
             </div>
 
-            {/* BENTO GRID: MINISTÉRIOS ATUAIS */}
             {fazParteMinisterio === 'Sim' && (
               <div className="space-y-3 animate-fadeIn border-t border-iba-sand/60 dark:border-neutral-700 pt-5">
                 <div className="flex justify-between items-center">
                   <label className={labelStyle}>
-                    Selecione seus ministérios de atuação (um ou mais) ou ministérios que você deseja participar <span className="text-red-500">*</span>
+                    Selecione seus ministérios de atuação (um ou mais) <span className="text-red-500">*</span>
                   </label>
                   <span className="text-[11px] font-bold text-iba-green bg-iba-green/10 px-2.5 py-0.5 rounded-full">
                     {qualMinisterioFazParte.length} selecionado(s)
@@ -1600,7 +1612,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
               </div>
             )}
 
-            {/* SE NÃO FAZ PARTE: QUER PARTICIPAR? (COMEÇA DESMARCADO) */}
             {fazParteMinisterio === 'Não' && (
               <div className="space-y-4 animate-fadeIn border-t border-iba-sand/60 dark:border-neutral-700 pt-5">
                 <div className="flex flex-col gap-2 max-w-sm">
@@ -1759,7 +1770,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
         </div>
       </form>
 
-      {/* FAQ RENDERIZADO NO FINAL DO FORMULÁRIO */}
       {renderFaqSection()}
     </div>
   );
