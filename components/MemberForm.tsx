@@ -1537,7 +1537,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
               <div className="space-y-3 animate-fadeIn border-t border-iba-sand/60 dark:border-neutral-700 pt-5">
                 <div className="flex justify-between items-center">
                   <label className={labelStyle}>
-                    Selecione seus ministérios de atuação (um ou mais) <span className="text-red-500">*</span>
+                    Selecione seus ministérios de atuação (um ou mais) ou ministérios que você deseja participar <span className="text-red-500">*</span>
                   </label>
                   <span className="text-[11px] font-bold text-iba-green bg-iba-green/10 px-2.5 py-0.5 rounded-full">
                     {qualMinisterioFazParte.length} selecionado(s)
