@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 // Separado do objeto metadata para não quebrar a compilação do Server Component
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </footer>
 
         <ThemeToggle />
+        <Analytics />
       </body>
     </html>
   );
