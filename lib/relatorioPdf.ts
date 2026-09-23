@@ -7,6 +7,11 @@ interface DadosRelatorio {
   congregantes: number;
   homens: number;
   mulheres: number;
+  temporais?: {
+    hoje: number;
+    semana: number;
+    mes: number;
+  };
   faixasEtarias: { label: string; qtd: number }[];
   rankingMinisterios: { nome: string; qtd: number }[];
   rankingCidades: { nome: string; qtd: number }[];

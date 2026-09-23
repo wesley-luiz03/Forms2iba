@@ -199,7 +199,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     return membros.filter((m) => !idsDuplicatas.has(m.id));
   }, [membros, todosIdsDuplicadosParaRemover]);
 
-  // CÁLCULO DAS MÉTRICAS REAIS E ESTATÍSTICAS
+  // CÁLCULO DAS MÉTRICAS REAIS, TEMPORAIS E ESTATÍSTICAS
   const metricas = useMemo(() => {
     const total = membrosUnicos.length;
     let membrosAtivos = 0;
@@ -215,7 +215,45 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     const mapaCidades: { [key: string]: number } = {};
     const mapaMinisterios: { [key: string]: number } = {};
 
-    const anoAtual = new Date().getFullYear();
+    // Normalizador Canônico de Ministérios
+    const canonicosMinisterios: Record<string, string> = {
+      'ministerio administrativo': 'Ministério Administrativo',
+      'ministerio da 3a idade': 'Ministério da 3ª idade',
+      'ministerio da familia': 'Ministério da Família',
+      'ministerio da juventude': 'Ministério da Juventude',
+      'ministerio de acao social': 'Ministério de Ação Social',
+      'ministerio de artes graficas': 'Ministério de Artes Gráficas',
+      'ministerio de comunicacao': 'Ministério de Comunicação',
+      'ministerio de educacao religiosa': 'Ministério de Educação Religiosa',
+      'ministerio de evangelismo e missoes': 'Ministério de Evangelismo e Missões',
+      'ministerio de intercessao': 'Ministério de Intercessão',
+      'ministerio de louvor': 'Ministério de Louvor',
+      'ministerio diaconal': 'Ministério Diaconal',
+      'ministerio infantil': 'Ministério Infantil',
+      'ministerio maos de deus': 'Ministério Mãos de Deus',
+    };
+
+    // Parâmetros Temporais
+    const agora = new Date();
+    const anoAtual = agora.getFullYear();
+
+    const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+
+    let cadastrosHoje = 0;
+    let cadastrosSemana = 0;
+    let cadastrosMes = 0;
+
+    // Estrutura dos últimos 7 dias para o gráfico temporal
+    const mapaDiasSemana: { [chaveData: string]: { label: string; qtd: number } } = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(agora.getTime() - i * 24 * 60 * 60 * 1000);
+      const chave = d.toISOString().split('T')[0];
+      const diaSemana = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+      const diaMes = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      mapaDiasSemana[chave] = { label: `${diaSemana}, ${diaMes}`, qtd: 0 };
+    }
 
     membrosUnicos.forEach((m) => {
       // 1. Tipo de Vínculo
@@ -245,14 +283,34 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
         mapaCidades[cidadeFormatada] = (mapaCidades[cidadeFormatada] || 0) + 1;
       }
 
-      // 5. Ministérios
+      // 5. Ministérios com unificação canônica
       const listaM = m.campos_extra?.qual_ministerio_faz_parte;
       if (Array.isArray(listaM)) {
         listaM.forEach((minNome: string) => {
-          if (minNome) {
-            mapaMinisterios[minNome] = (mapaMinisterios[minNome] || 0) + 1;
+          if (typeof minNome === 'string' && minNome.trim()) {
+            const chave = minNome
+              .trim()
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '');
+
+            const nomeOficial = canonicosMinisterios[chave] || minNome.trim();
+            mapaMinisterios[nomeOficial] = (mapaMinisterios[nomeOficial] || 0) + 1;
           }
         });
+      }
+
+      // 6. Análise de Recadastramentos Temporais
+      if (m.created_at) {
+        const dataCad = new Date(m.created_at);
+        if (dataCad >= inicioHoje) cadastrosHoje++;
+        if (dataCad >= seteDiasAtras) cadastrosSemana++;
+        if (dataCad >= inicioMes) cadastrosMes++;
+
+        const chaveDia = dataCad.toISOString().split('T')[0];
+        if (mapaDiasSemana[chaveDia]) {
+          mapaDiasSemana[chaveDia].qtd++;
+        }
       }
     });
 
@@ -265,12 +323,24 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       .map(([nome, qtd]) => ({ nome, qtd }))
       .sort((a, b) => b.qtd - a.qtd);
 
+    const evolucaoUltimos7Dias = Object.entries(mapaDiasSemana).map(([chave, val]) => ({
+      dataChave: chave,
+      label: val.label,
+      qtd: val.qtd
+    }));
+
     return {
       total,
       membrosAtivos,
       congregantes,
       homens,
       mulheres,
+      temporais: {
+        hoje: cadastrosHoje,
+        semana: cadastrosSemana,
+        mes: cadastrosMes,
+        evolucaoUltimos7Dias
+      },
       faixasEtarias: [
         { label: 'Crianças (0-11)', qtd: criancas, cor: 'bg-amber-500' },
         { label: 'Jovens (12-29)', qtd: jovens, cor: 'bg-emerald-500' },
@@ -668,6 +738,110 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                 </svg>
                 <span>Imprimir Rápido</span>
               </button>
+            </div>
+          </div>
+
+          {/* NOVO DASHBOARD TEMPORAL: RITMO DE RECADASTRAMENTO */}
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-neutral-100 dark:border-neutral-800">
+              <div>
+                <h4 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Ritmo e Frequência de Recadastramento
+                </h4>
+                <p className="text-xs text-neutral-400">
+                  Acompanhamento cronológico das submissões concluídas no sistema.
+                </p>
+              </div>
+              <span className="text-[11px] font-bold text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-3 py-1 rounded-full">
+                {metricas.temporais.semana} cadastros nos últimos 7 dias
+              </span>
+            </div>
+
+            {/* CARTÕES TEMPORAIS (HOJE, SEMANA, MÊS) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-xl border border-emerald-200/80 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-1">
+                <span className="text-[11px] uppercase font-bold text-emerald-700 dark:text-emerald-400 block tracking-wider">
+                  Cadastros Hoje
+                </span>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold text-emerald-700 dark:text-emerald-300">
+                    {metricas.temporais.hoje}
+                  </span>
+                  <span className="text-[11px] text-neutral-500 font-semibold">
+                    desde as 00:00
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl border border-sky-200/80 dark:border-sky-900/40 bg-sky-50/40 dark:bg-sky-950/20 space-y-1">
+                <span className="text-[11px] uppercase font-bold text-sky-700 dark:text-sky-400 block tracking-wider">
+                  Esta Semana
+                </span>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold text-sky-700 dark:text-sky-300">
+                    {metricas.temporais.semana}
+                  </span>
+                  <span className="text-[11px] text-neutral-500 font-semibold">
+                    últimos 7 dias
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl border border-purple-200/80 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 space-y-1">
+                <span className="text-[11px] uppercase font-bold text-purple-700 dark:text-purple-400 block tracking-wider">
+                  Este Mês
+                </span>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold text-purple-700 dark:text-purple-300">
+                    {metricas.temporais.mes}
+                  </span>
+                  <span className="text-[11px] text-neutral-500 font-semibold">
+                    acumulado do mês
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* GRÁFICO DE BARRAS DOS ÚLTIMOS 7 DIAS */}
+            <div className="space-y-3 pt-2">
+              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider block">
+                Evolução Diária (Últimos 7 Dias)
+              </span>
+
+              <div className="grid grid-cols-7 gap-2 sm:gap-4 h-36 items-end px-2 pt-6 border-b border-neutral-200 dark:border-neutral-800">
+                {metricas.temporais.evolucaoUltimos7Dias.map((item) => {
+                  const maxQtd = Math.max(...metricas.temporais.evolucaoUltimos7Dias.map(d => d.qtd), 1);
+                  const alturaPct = Math.max(Math.round((item.qtd / maxQtd) * 100), 10);
+                  const isPico = item.qtd === maxQtd && item.qtd > 0;
+
+                  return (
+                    <div key={item.dataChave} className="flex flex-col items-center h-full justify-end group">
+                      <span className="text-[11px] sm:text-xs font-bold text-neutral-800 dark:text-neutral-200 mb-1.5">
+                        {item.qtd}
+                      </span>
+                      <div className="w-full max-w-[42px] bg-neutral-100 dark:bg-neutral-800 rounded-t-lg overflow-hidden h-full flex items-end">
+                        <div
+                          style={{ height: `${alturaPct}%` }}
+                          className={`w-full rounded-t-lg transition-all duration-500 ${
+                            isPico ? 'bg-iba-green shadow-md shadow-iba-green/30' : 'bg-emerald-400/80 dark:bg-emerald-600/80 group-hover:bg-iba-green'
+                          }`}
+                          title={`${item.label}: ${item.qtd} cadastros`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Legendas dos dias da semana */}
+              <div className="grid grid-cols-7 gap-2 sm:gap-4 text-center text-[10px] sm:text-[11px] font-bold text-neutral-500">
+                {metricas.temporais.evolucaoUltimos7Dias.map((item) => (
+                  <span key={item.dataChave} className="truncate" title={item.label}>
+                    {item.label.split(',')[0]}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
