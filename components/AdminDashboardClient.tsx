@@ -26,13 +26,13 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
   // Perfil de Acesso: 'admin' (acesso total) | 'viewer' (apenas dashboards)
   const [userRole, setUserRole] = useState<'admin' | 'viewer'>('admin');
 
-  // Controle de Abas: 'metricas' | 'todos' | 'duplicados'
+  // Controlo de Separadores: 'metricas' | 'todos' | 'duplicados'
   const [abaAtiva, setAbaAtiva] = useState<'metricas' | 'todos' | 'duplicados'>('metricas');
 
-  // Estado do Toast
+  // Estado da Notificação Toast
   const [toastNotificacao, setToastNotificacao] = useState<string | null>(null);
 
-  // Estados de Seleção e Exclusão
+  // Estados de Seleção e Eliminação
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [modalExclusaoAberto, setModalExclusaoAberto] = useState(false);
   const [membroParaExcluirUnico, setMembroParaExcluirUnico] = useState<Membro | null>(null);
@@ -42,6 +42,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
 
   const tempoInatividadeRef = useRef<NodeJS.Timeout | null>(null);
 
+  // CARREGAMENTO INICIAL COM DECIFRAÇÃO VIA ENDPOINT SEGURO
   useEffect(() => {
     setMounted(true);
 
@@ -55,16 +56,24 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
 
     const carregarMembrosIniciais = async () => {
       setCarregando(true);
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('membros')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setMembros(data);
+      try {
+        const res = await fetch('/api/admin/membros', {
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setMembros(data);
+          }
+        } else {
+          setToastNotificacao('Falha ao autenticar para carregar dados.');
+        }
+      } catch (err) {
+        setToastNotificacao('Erro de conexão ao carregar os registos.');
+      } finally {
+        setCarregando(false);
       }
-      setCarregando(false);
     };
 
     carregarMembrosIniciais();
@@ -94,7 +103,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     };
   }, []);
 
-  // Monitoramento a cada 15s
+  // Monitorização de novos registos a cada 15s
   useEffect(() => {
     const checarNovosCadastros = async () => {
       const supabase = createClient();
@@ -111,24 +120,27 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     return () => clearInterval(interval);
   }, [membros.length]);
 
+  // RECARREGAMENTO MANUAL COM DECIFRAÇÃO EM SERVIDOR
   const recarregarDados = async () => {
     setAtualizando(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('membros')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setMembros(data);
-      setTemNovosCadastros(false);
-      setToastNotificacao(`Sincronizado! Total de ${data.length} cadastro(s).`);
-    } else if (error) {
-      setToastNotificacao('Erro ao sincronizar com o banco de dados.');
+    try {
+      const res = await fetch('/api/admin/membros');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setMembros(data);
+          setTemNovosCadastros(false);
+          setToastNotificacao(`Sincronizado! Total de ${data.length} registo(s) decifrado(s).`);
+        }
+      } else {
+        setToastNotificacao('Erro de permissão ao sincronizar com o banco.');
+      }
+    } catch {
+      setToastNotificacao('Erro de conexão ao sincronizar registos.');
+    } finally {
+      setTimeout(() => setAtualizando(false), 500);
+      setTimeout(() => setToastNotificacao(null), 4000);
     }
-
-    setTimeout(() => setAtualizando(false), 500);
-    setTimeout(() => setToastNotificacao(null), 4000);
   };
 
   const calcularCompletude = (item: Membro): number => {
@@ -193,7 +205,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     return gruposDuplicados.flatMap((g) => g.duplicatas.map((d) => d.id));
   }, [gruposDuplicados]);
 
-  // CADASTROS ÚNICOS HIGIENIZADOS
+  // REGISTOS ÚNICOS HIGIENIZADOS
   const membrosUnicos = useMemo(() => {
     const idsDuplicatas = new Set(todosIdsDuplicadosParaRemover);
     return membros.filter((m) => !idsDuplicatas.has(m.id));
@@ -215,7 +227,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     const mapaCidades: { [key: string]: number } = {};
     const mapaMinisterios: { [key: string]: number } = {};
 
-    // Normalizador Canônico de Ministérios
     const canonicosMinisterios: Record<string, string> = {
       'ministerio administrativo': 'Ministério Administrativo',
       'ministerio da 3a idade': 'Ministério da 3ª idade',
@@ -233,7 +244,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       'ministerio maos de deus': 'Ministério Mãos de Deus',
     };
 
-    // Parâmetros Temporais
     const agora = new Date();
     const anoAtual = agora.getFullYear();
 
@@ -245,7 +255,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     let cadastrosSemana = 0;
     let cadastrosMes = 0;
 
-    // Estrutura dos últimos 7 dias para o gráfico temporal
     const mapaDiasSemana: { [chaveData: string]: { label: string; qtd: number } } = {};
     for (let i = 6; i >= 0; i--) {
       const d = new Date(agora.getTime() - i * 24 * 60 * 60 * 1000);
@@ -256,11 +265,11 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     }
 
     membrosUnicos.forEach((m) => {
-      // 1. Tipo de Vínculo
+      // 1. Vínculo
       if (m.arrolamento === 'ADMISSÃO') membrosAtivos++;
       else congregantes++;
 
-      // 2. Gênero
+      // 2. Género
       if (m.genero === 'Feminino') mulheres++;
       else homens++;
 
@@ -283,7 +292,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
         mapaCidades[cidadeFormatada] = (mapaCidades[cidadeFormatada] || 0) + 1;
       }
 
-      // 5. Ministérios com unificação canônica
+      // 5. Ministérios com unificação canónica
       const listaM = m.campos_extra?.qual_ministerio_faz_parte;
       if (Array.isArray(listaM)) {
         listaM.forEach((minNome: string) => {
@@ -300,7 +309,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
         });
       }
 
-      // 6. Análise de Recadastramentos Temporais
+      // 6. Cadastros Temporais
       if (m.created_at) {
         const dataCad = new Date(m.created_at);
         if (dataCad >= inicioHoje) cadastrosHoje++;
@@ -401,7 +410,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     const { error } = await supabase.from('membros').delete().in('id', idsParaDeletar);
 
     if (error) {
-      alert(`Erro ao excluir registro(s): ${error.message}`);
+      alert(`Erro ao excluir registo(s): ${error.message}`);
     } else {
       const novosMembros = membros.filter((m) => !idsParaDeletar.includes(m.id));
       setMembros(novosMembros);
@@ -410,7 +419,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       setExcluindoEmLoteDuplicados(false);
       setConfirmouBackup(false);
       setModalExclusaoAberto(false);
-      setToastNotificacao(`Operação concluída! ${idsParaDeletar.length} registro(s) removido(s) do banco de dados.`);
+      setToastNotificacao(`Operação concluída! ${idsParaDeletar.length} registo(s) removido(s) do banco de dados.`);
       setTimeout(() => setToastNotificacao(null), 4000);
     }
     setExcluindo(false);
@@ -449,7 +458,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
   const exportarSQL = () => {
     const lista = membros;
     if (lista.length === 0) {
-      alert('Nenhum cadastro encontrado para gerar o arquivo SQL.');
+      alert('Nenhum cadastro encontrado para gerar o ficheiro SQL.');
       return;
     }
 
@@ -496,7 +505,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     URL.revokeObjectURL(url);
 
     setConfirmouBackup(true);
-    setToastNotificacao('Backup SQL baixado com sucesso! Agora você pode prosseguir.');
+    setToastNotificacao('Backup SQL descarregado com sucesso!');
     setTimeout(() => setToastNotificacao(null), 4000);
   };
 
@@ -531,7 +540,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
         }
       `}</style>
 
-      {/* CARD SUPERIOR COM TOTAL E STATUS */}
+      {/* CARTÃO SUPERIOR COM TOTAL E STATUS */}
       <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full no-print">
         <div>
           <div className="flex items-center gap-3">
@@ -549,7 +558,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                     ? 'bg-amber-500 text-white animate-bounce shadow-lg shadow-amber-500/30'
                     : 'text-neutral-500 hover:text-iba-green bg-neutral-100 dark:bg-neutral-800'
                 }`}
-                title={temNovosCadastros ? 'Novo cadastro detectado! Clique para atualizar.' : 'Atualizar dados'}
+                title={temNovosCadastros ? 'Novo registo detetado! Clique para atualizar.' : 'Atualizar dados'}
               >
                 <svg
                   className={`w-4 h-4 ${atualizando || carregando ? 'animate-spin' : ''}`}
@@ -569,12 +578,12 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
             </div>
           </div>
           <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            Total de <strong>{membros.length}</strong> registros no banco (<strong>{membrosUnicos.length}</strong> pessoas únicas).
+            Total de <strong>{membros.length}</strong> registos (<strong>{membrosUnicos.length}</strong> pessoas únicas).
             {userRole === 'viewer' && ' Acesso exclusivo para visualização de relatórios.'}
           </p>
         </div>
 
-        {/* BOTÕES DE EXPORTAÇÃO (APENAS PARA O ADMINISTRADOR) */}
+        {/* BOTÕES DE EXPORTAÇÃO (APENAS ADMINISTRADOR) */}
         {userRole === 'admin' && (
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto">
             {selecionados.length > 0 && abaAtiva === 'todos' && (
@@ -634,7 +643,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
         )}
       </div>
 
-      {/* SELETOR DE ABAS */}
+      {/* SELETOR DE SEPARADORES */}
       <div className="flex border-b border-neutral-200 dark:border-neutral-800 gap-4 overflow-x-auto no-print">
         <button
           type="button"
@@ -695,12 +704,12 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       </div>
 
       {/* ============================================================== */}
-      {/* ABA 1: DASHBOARDS E MÉTRICAS PARA LIDERANÇA                   */}
+      {/* SEPARADOR 1: DASHBOARDS E MÉTRICAS PARA LIDERANÇA              */}
       {/* ============================================================== */}
       {abaAtiva === 'metricas' && (
         <div className="space-y-6 animate-fadeIn font-sans print-container">
           
-          {/* CABEÇALHO DO RELATÓRIO COM BOTÕES DE PDF E IMPRESSÃO */}
+          {/* CABEÇALHO DO RELATÓRIO */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm">
             <div>
               <h3 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
@@ -719,7 +728,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                 type="button"
                 onClick={() => gerarRelatorioPdfLideranca(metricas)}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer flex-1 sm:flex-none justify-center"
-                title="Gera e faz download do arquivo PDF formatado da 2IBA"
+                title="Gera e faz download do ficheiro PDF formatado da 2IBA"
               >
                 <svg className="w-4 h-4 text-white flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -741,7 +750,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
             </div>
           </div>
 
-          {/* NOVO DASHBOARD TEMPORAL: RITMO DE RECADASTRAMENTO */}
+          {/* DASHBOARD TEMPORAL: RITMO DE RECADASTRAMENTO */}
           <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-neutral-100 dark:border-neutral-800">
               <div>
@@ -750,7 +759,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                   Ritmo e Frequência de Recadastramento
                 </h4>
                 <p className="text-xs text-neutral-400">
-                  Acompanhamento cronológico das submissões concluídas no sistema.
+                  Acompanhamento cronológico dos registos decifrados no sistema.
                 </p>
               </div>
               <span className="text-[11px] font-bold text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-3 py-1 rounded-full">
@@ -758,7 +767,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
               </span>
             </div>
 
-            {/* CARTÕES TEMPORAIS (HOJE, SEMANA, MÊS) */}
+            {/* CARTÕES TEMPORAIS */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-xl border border-emerald-200/80 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-1">
                 <span className="text-[11px] uppercase font-bold text-emerald-700 dark:text-emerald-400 block tracking-wider">
@@ -845,7 +854,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
             </div>
           </div>
 
-          {/* CARDS DE TOTALIZADORES PRINCIPAIS */}
+          {/* TOTALIZADORES GERAIS */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-sm space-y-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
@@ -893,9 +902,8 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
             </div>
           </div>
 
-          {/* GRÁFICOS EM PIZZA / DONUT (VÍNCULO E GÊNERO) */}
+          {/* GRÁFICOS DONUT (VÍNCULO E GÉNERO) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* GRÁFICO PIZZA 1: MEMBROS VS CONGREGANTES */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-sm space-y-5">
               <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
                 <h4 className="text-sm font-bold text-neutral-900 dark:text-white flex items-center gap-2">
@@ -906,7 +914,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-around gap-6 pt-2">
-                {/* SVG DONUT CHART */}
                 <div className="relative w-40 h-40 flex items-center justify-center flex-none">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                     <circle
@@ -949,7 +956,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                   </div>
                 </div>
 
-                {/* Legendas */}
                 <div className="space-y-3 w-full sm:w-auto">
                   <div className="flex items-center justify-between sm:justify-start gap-4 p-3 rounded-xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/20">
                     <div className="flex items-center gap-2">
@@ -974,18 +980,16 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
               </div>
             </div>
 
-            {/* GRÁFICO PIZZA 2: DISTRIBUIÇÃO POR GÊNERO */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-sm space-y-5">
               <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
                 <h4 className="text-sm font-bold text-neutral-900 dark:text-white flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                  Distribuição por Gênero
+                  Distribuição por Género
                 </h4>
                 <span className="text-xs text-neutral-400 font-semibold">{metricas.total} total</span>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-around gap-6 pt-2">
-                {/* SVG DONUT CHART */}
                 <div className="relative w-40 h-40 flex items-center justify-center flex-none">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                     <circle
@@ -1028,7 +1032,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                   </div>
                 </div>
 
-                {/* Legendas */}
                 <div className="space-y-3 w-full sm:w-auto">
                   <div className="flex items-center justify-between sm:justify-start gap-4 p-3 rounded-xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/20">
                     <div className="flex items-center gap-2">
@@ -1054,7 +1057,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
             </div>
           </div>
 
-          {/* GRÁFICO EM TORRES VERTICAIS: FAIXA ETÁRIA */}
+          {/* GRÁFICO DE TORRES: FAIXA ETÁRIA */}
           <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-sm space-y-6">
             <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
               <h4 className="text-sm font-bold text-neutral-900 dark:text-white flex items-center gap-2">
@@ -1064,7 +1067,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
               <span className="text-xs text-neutral-400 font-semibold">Cálculo pela data de nascimento</span>
             </div>
 
-            {/* EIXO DE TORRES VERTICAIS */}
             <div className="grid grid-cols-4 gap-3 sm:gap-6 h-52 items-end pt-8 px-2 border-b border-neutral-200 dark:border-neutral-800">
               {metricas.faixasEtarias.map((faixa) => {
                 const alturaMax = Math.max(...metricas.faixasEtarias.map((f) => f.qtd), 1);
@@ -1092,7 +1094,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
               })}
             </div>
 
-            {/* Legenda inferior das Torres */}
             <div className="grid grid-cols-4 gap-3 sm:gap-6 text-center text-xs font-bold text-neutral-600 dark:text-neutral-400">
               {metricas.faixasEtarias.map((faixa) => (
                 <span key={faixa.label} className="text-[11px] sm:text-xs truncate" title={faixa.label}>
@@ -1102,9 +1103,8 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
             </div>
           </div>
 
-          {/* DISTRIBUIÇÃO POR MINISTÉRIO E CIDADE */}
+          {/* MINISTÉRIOS E CIDADES */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* DISTRIBUIÇÃO POR MINISTÉRIO */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-sm space-y-4">
               <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
                 <h4 className="text-sm font-bold text-neutral-900 dark:text-white flex items-center gap-2">
@@ -1143,7 +1143,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
               )}
             </div>
 
-            {/* DISTRIBUIÇÃO POR CIDADE */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-sm space-y-4">
               <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
                 <h4 className="text-sm font-bold text-neutral-900 dark:text-white flex items-center gap-2">
@@ -1187,7 +1186,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       )}
 
       {/* ============================================================== */}
-      {/* ABA 2: TODOS OS CADASTROS (APENAS PARA O ADMINISTRADOR)        */}
+      {/* SEPARADOR 2: TODOS OS CADASTROS (APENAS ADMINISTRADOR)         */}
       {/* ============================================================== */}
       {abaAtiva === 'todos' && userRole === 'admin' && (
         <div className="space-y-4 no-print">
@@ -1207,7 +1206,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
               onChange={(e) => setFiltroTipo(e.target.value)}
               className="border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-iba-green"
             >
-              <option value="todos">Todos os Registros ({membros.length})</option>
+              <option value="todos">Todos os Registos ({membros.length})</option>
               <option value="membro">Apenas Membros Ativos</option>
               <option value="congregante">Apenas Congregantes</option>
             </select>
@@ -1240,14 +1239,14 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                       <td colSpan={7} className="text-center py-12 text-neutral-500">
                         <div className="flex items-center justify-center gap-2">
                           <span className="w-4 h-4 border-2 border-iba-green border-t-transparent rounded-full animate-spin" />
-                          <span>Buscando cadastros no banco de dados...</span>
+                          <span>A obter e decifrar registos com segurança...</span>
                         </div>
                       </td>
                     </tr>
                   ) : membrosFiltrados.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-8 text-neutral-400">
-                        Nenhum registro encontrado no banco de dados.
+                        Nenhum registo encontrado no banco de dados.
                       </td>
                     </tr>
                   ) : (
@@ -1316,11 +1315,10 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       )}
 
       {/* ============================================================== */}
-      {/* ABA 3: AUDITORIA DE DUPLICADOS (APENAS PARA O ADMINISTRADOR)   */}
+      {/* SEPARADOR 3: AUDITORIA DE DUPLICADOS (APENAS ADMINISTRADOR)    */}
       {/* ============================================================== */}
       {abaAtiva === 'duplicados' && userRole === 'admin' && (
         <div className="space-y-6 animate-fadeIn no-print">
-          {/* BANNER DE AÇÃO EM LOTE */}
           <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
@@ -1338,7 +1336,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
               </h3>
               <p className="text-xs text-amber-700 dark:text-amber-400">
                 Identificamos {todosIdsDuplicadosParaRemover.length} linha(s) redundante(s) associada(s) a essas{' '}
-                {gruposDuplicados.length} pessoas. O registro mais completo será preservado.
+                {gruposDuplicados.length} pessoas. O registo mais completo será preservado.
               </p>
             </div>
 
@@ -1366,7 +1364,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
             )}
           </div>
 
-          {/* LISTA COMPARATIVA DOS DUPLICADOS */}
           {gruposDuplicados.length === 0 ? (
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-12 text-center text-xs text-neutral-500">
               Todos os cadastros do banco estão íntegros e sem duplicidade.
@@ -1386,16 +1383,15 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                       <h4 className="font-bold text-sm text-neutral-900 dark:text-white">{grupo.nomeExibicao}</h4>
                     </div>
                     <span className="text-[11px] text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-full font-bold">
-                      {grupo.duplicatas.length + 1} registros encontrados
+                      {grupo.duplicatas.length + 1} registos encontrados
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* REGISTRO PRINCIPAL */}
                     <div className="p-4 rounded-xl border-2 border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/20 space-y-2 relative">
                       <div className="flex justify-between items-center">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 text-white uppercase tracking-wider">
-                          ✓ Registro Principal (Ficará no Banco)
+                          ✓ Registo Principal (Ficará no Banco)
                         </span>
                         <span className="text-[10px] text-neutral-400">
                           {calcularCompletude(grupo.principal)} pts de dados
@@ -1421,7 +1417,6 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                       </div>
                     </div>
 
-                    {/* REGISTROS DUPLICADOS */}
                     <div className="space-y-3">
                       {grupo.duplicatas.map((dup, dIdx) => (
                         <div
@@ -1478,7 +1473,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
         </div>
       )}
 
-      {/* MODAL GLOBAL DE CONFIRMAÇÃO DE EXCLUSÃO (COM BACKUP PREVENTIVO) */}
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
       {mounted && modalExclusaoAberto && userRole === 'admin' && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[999999] animate-fadeIn no-print">
           <div className="bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-700 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-scaleUp">
@@ -1500,22 +1495,21 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
               <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
                 {excluindoEmLoteDuplicados ? (
                   <>
-                    Você está prestes a remover <strong className="text-red-500">{todosIdsDuplicadosParaRemover.length} registro(s) duplicados e incompletos</strong> no Supabase, preservando o cadastro mais completo de cada membro.
+                    Está prestes a remover <strong className="text-red-500">{todosIdsDuplicadosParaRemover.length} registo(s) duplicados e incompletos</strong> no Supabase, preservando o registo mais completo de cada membro.
                   </>
                 ) : membroParaExcluirUnico ? (
                   <>
-                    Você está prestes a remover a duplicata de <strong className="text-neutral-900 dark:text-white">{membroParaExcluirUnico.nome}</strong> diretamente do banco de dados.
+                    Está prestes a remover a duplicata de <strong className="text-neutral-900 dark:text-white">{membroParaExcluirUnico.nome}</strong> diretamente do banco de dados.
                   </>
                 ) : (
                   <>
-                    Você está prestes a remover <strong className="text-red-500">{selecionados.length} registro(s)</strong> selecionados diretamente do banco de dados.
+                    Está prestes a remover <strong className="text-red-500">{selecionados.length} registo(s)</strong> selecionados diretamente do banco de dados.
                   </>
                 )}
                 <br />Esta ação é permanente e irreversível no banco de dados.
               </p>
             </div>
 
-            {/* BLOCO DE BACKUP PREVENTIVO */}
             {excluindoEmLoteDuplicados && (
               <div className="p-4 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 space-y-3">
                 <div className="flex items-center justify-between gap-2">
@@ -1542,7 +1536,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                     className="mt-0.5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
                   />
                   <span className="leading-snug">
-                    Confirmo que baixei ou já possuo o backup preventivo deste banco antes de prosseguir com a exclusão.
+                    Confirmo que descarreguei ou já possuo o backup preventivo deste banco antes de prosseguir com a exclusão.
                   </span>
                 </label>
               </div>
@@ -1571,7 +1565,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
                 {excluindo ? (
                   <>
                     <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Excluindo...</span>
+                    <span>A eliminar...</span>
                   </>
                 ) : (
                   <span>Confirmar e Limpar Banco</span>
@@ -1583,7 +1577,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
         document.body
       )}
 
-      {/* TOAST DE NOTIFICAÇÃO */}
+      {/* NOTIFICAÇÃO TOAST */}
       {mounted && toastNotificacao && createPortal(
         <div className="fixed bottom-6 left-6 z-[999999] animate-fadeIn transition-all pointer-events-auto no-print">
           <div className="bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 px-5 py-3.5 rounded-2xl shadow-2xl border border-neutral-700 dark:border-neutral-200 flex items-center justify-between gap-4 text-xs font-semibold max-w-sm sm:max-w-md">
