@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
@@ -23,6 +23,9 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
   const [temNovosCadastros, setTemNovosCadastros] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // Guarda a contagem confirmada para evitar falso positivo do botão "Novo!"
+  const ultimaContagemConhecidaRef = useRef<number>(membrosIniciais?.length || 0);
+
   // Perfil de Acesso: 'admin' (acesso total) | 'viewer' (apenas dashboards)
   const [userRole, setUserRole] = useState<'admin' | 'viewer'>('admin');
 
@@ -42,7 +45,50 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
 
   const tempoInatividadeRef = useRef<NodeJS.Timeout | null>(null);
 
-  // CARREGAMENTO INICIAL COM DECIFRAÇÃO VIA ENDPOINT SEGURO
+  // FUNÇÃO DE BUSCA E DECIFRAÇÃO COM CONTROLE ANTI-CACHE
+  const buscarMembrosServidor = useCallback(async (isManual = false) => {
+    if (isManual) setAtualizando(true);
+    try {
+      const res = await fetch(`/api/admin/membros?t=${Date.now()}`, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Pragma': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setMembros(data);
+          ultimaContagemConhecidaRef.current = data.length;
+          setTemNovosCadastros(false); // Reseta explicitamente o badge "Novo!"
+
+          if (isManual) {
+            setToastNotificacao(`Sincronizado! Total de ${data.length} registo(s) decifrado(s).`);
+          }
+        }
+      } else {
+        if (isManual) {
+          setToastNotificacao('Erro de permissão ao sincronizar com o banco.');
+        } else {
+          setToastNotificacao('Falha ao autenticar para carregar dados.');
+        }
+      }
+    } catch {
+      setToastNotificacao('Erro de conexão ao carregar os registos.');
+    } finally {
+      setCarregando(false);
+      if (isManual) {
+        setTimeout(() => setAtualizando(false), 400);
+        setTimeout(() => setToastNotificacao(null), 4000);
+      }
+    }
+  }, []);
+
+  // CARREGAMENTO INICIAL
   useEffect(() => {
     setMounted(true);
 
@@ -54,29 +100,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       setUserRole('admin');
     }
 
-    const carregarMembrosIniciais = async () => {
-      setCarregando(true);
-      try {
-        const res = await fetch('/api/admin/membros', {
-          credentials: 'include',
-          cache: 'no-store'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            setMembros(data);
-          }
-        } else {
-          setToastNotificacao('Falha ao autenticar para carregar dados.');
-        }
-      } catch (err) {
-        setToastNotificacao('Erro de conexão ao carregar os registos.');
-      } finally {
-        setCarregando(false);
-      }
-    };
-
-    carregarMembrosIniciais();
+    buscarMembrosServidor(false);
 
     const TEMPO_OCIOSIDADE_MS = 10 * 60 * 1000;
     const deslogarPorInatividade = () => {
@@ -101,46 +125,39 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
       if (tempoInatividadeRef.current) clearTimeout(tempoInatividadeRef.current);
       eventos.forEach((evt) => window.removeEventListener(evt, resetarTimer));
     };
-  }, []);
+  }, [buscarMembrosServidor]);
 
-  // Monitorização de novos registos a cada 15s
+  // Monitorização de novos registos sem falso positivo
   useEffect(() => {
-    const checarNovosCadastros = async () => {
-      const supabase = createClient();
-      const { count, error } = await supabase
-        .from('membros')
-        .select('*', { count: 'exact', head: true });
+    if (carregando) return;
 
-      if (!error && count !== null && count > membros.length) {
-        setTemNovosCadastros(true);
+    const checarNovosCadastros = async () => {
+      try {
+        const supabase = createClient();
+        const { count, error } = await supabase
+          .from('membros')
+          .select('*', { count: 'exact', head: true });
+
+        // Só ativa o botão "Novo!" se a contagem do banco for estritamente maior que a já sincronizada
+        if (!error && count !== null) {
+          if (count > ultimaContagemConhecidaRef.current) {
+            setTemNovosCadastros(true);
+          } else {
+            setTemNovosCadastros(false);
+          }
+        }
+      } catch {
+        // Ignora erros de checagem silenciosa de rede
       }
     };
 
     const interval = setInterval(checarNovosCadastros, 15000);
     return () => clearInterval(interval);
-  }, [membros.length]);
+  }, [carregando]);
 
-  // RECARREGAMENTO MANUAL COM DECIFRAÇÃO EM SERVIDOR
-  const recarregarDados = async () => {
-    setAtualizando(true);
-    try {
-      const res = await fetch('/api/admin/membros');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setMembros(data);
-          setTemNovosCadastros(false);
-          setToastNotificacao(`Sincronizado! Total de ${data.length} registo(s) decifrado(s).`);
-        }
-      } else {
-        setToastNotificacao('Erro de permissão ao sincronizar com o banco.');
-      }
-    } catch {
-      setToastNotificacao('Erro de conexão ao sincronizar registos.');
-    } finally {
-      setTimeout(() => setAtualizando(false), 500);
-      setTimeout(() => setToastNotificacao(null), 4000);
-    }
+  // RECARREGAMENTO MANUAL COM RESET COMPLETO
+  const recarregarDados = () => {
+    buscarMembrosServidor(true);
   };
 
   const calcularCompletude = (item: Membro): number => {
@@ -414,6 +431,7 @@ export default function AdminDashboardClient({ membrosIniciais }: { membrosInici
     } else {
       const novosMembros = membros.filter((m) => !idsParaDeletar.includes(m.id));
       setMembros(novosMembros);
+      ultimaContagemConhecidaRef.current = novosMembros.length;
       setSelecionados([]);
       setMembroParaExcluirUnico(null);
       setExcluindoEmLoteDuplicados(false);

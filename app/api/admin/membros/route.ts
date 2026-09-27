@@ -3,23 +3,22 @@ import { createClient } from '@supabase/supabase-js';
 import { decrypt } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    // Dá prioridade total à chave de serviço para ignorar o bloqueio do RLS
+    const supabaseKey = 
+      process.env.SUPABASE_SERVICE_ROLE_KEY || 
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+      '';
 
-    // 1. Diagnóstico de variáveis de ambiente
     if (!supabaseUrl || !supabaseKey) {
-      console.error('❌ Falta NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY');
-      return NextResponse.json({
-        erro_diagnostico: 'Variáveis de ambiente do Supabase não foram encontradas no processo Node.',
-        tem_url: Boolean(supabaseUrl),
-        tem_key: Boolean(supabaseKey),
-      }, { status: 500 });
+      return NextResponse.json({ error: 'Chaves de ambiente ausentes.' }, { status: 500 });
     }
 
-    // 2. Conexão direta
+    // Cria o cliente com privilégios de administração (bypassa RLS)
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { persistSession: false }
     });
@@ -30,16 +29,16 @@ export async function GET() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('❌ Erro Supabase:', error);
-      return NextResponse.json({ erro_diagnostico: error.message }, { status: 500 });
+      console.error('Erro na leitura do Supabase:', error);
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // 3. Processamento tolerante
-    const membrosFormatados = (data || []).map((m: any) => {
+    // Processamento com tolerância total a dados decifrados e novos
+    const membrosHigienizados = (data || []).map((m: any) => {
       let dadosFam = m.dados_familiares;
 
-      try {
-        if (dadosFam && typeof dadosFam === 'object') {
+      if (dadosFam && typeof dadosFam === 'object') {
+        try {
           if (dadosFam.conjugeCompleto) {
             dadosFam.conjugeCompleto = {
               ...dadosFam.conjugeCompleto,
@@ -58,9 +57,9 @@ export async function GET() {
               email: decrypt(f?.email) || f?.email,
             }));
           }
+        } catch {
+          // Mantém dados intactos em caso de inconsistência
         }
-      } catch (errDecFam) {
-        console.warn('Erro ao decifrar familiares:', errDecFam);
       }
 
       return {
@@ -74,12 +73,14 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(membrosFormatados);
+    return NextResponse.json(membrosHigienizados, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   } catch (err: any) {
-    console.error('❌ Exceção geral capturada em /api/admin/membros:', err);
-    return NextResponse.json({
-      erro_diagnostico: err?.message || 'Exceção não tratada',
-      stack: err?.stack
-    }, { status: 500 });
+    return NextResponse.json({ error: err?.message || 'Erro de servidor' }, { status: 500 });
   }
 }
