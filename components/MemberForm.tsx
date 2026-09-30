@@ -17,7 +17,7 @@ interface Filho {
   igrejaBatismo: string;
   dataBatismo: string;
   batismoNaoRecordo: boolean;
-  arrolamento: string;
+  arrolamento: 'ADMISSÃO' | 'FREQUENTADOR' | 'NAO_FREQUENTA';
 }
 
 interface EstadoIBGE {
@@ -62,7 +62,7 @@ const FAQS = [
   {
     id: 2,
     pergunta: "Por que os dados do meu cônjuge e filhos são vinculados à minha ficha?",
-    resposta: "Para garantir a conexão e integridade da sua família na secretaria. Cada membro da família com CPF ou que deseje informar seus próprios ministérios também pode preencher sua ficha individual a qualquer momento sem bloqueios."
+    resposta: "Para garantir a conexão e integridade da sua família na secretaria. Caso seu cônjuge ou filhos pertençam a outra denominação ou não frequentem a igreja, você pode selecionar essa opção e cadastrar apenas os dados civis."
   },
   {
     id: 3,
@@ -175,7 +175,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [paiNaoConsta, setPaiNaoConsta] = useState(false);
   const [nomeMae, setNomeMae] = useState('');
 
-  // Batismo (Titular) -> Começa desmarcado (null)
+  // Batismo (Titular)
   const [titularBatizado, setTitularBatizado] = useState<'Sim' | 'Não' | null>(null);
   const [igrejaBatismo, setIgrejaBatismo] = useState('');
   const [dataBatismo, setDataBatismo] = useState('');
@@ -197,7 +197,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [tipoSanguineo, setTipoSanguineo] = useState('');
   const [isDoador, setIsDoador] = useState('');
 
-  // Ministérios -> Começam desmarcados (null)
+  // Ministérios
   const [fazParteMinisterio, setFazParteMinisterio] = useState<'Sim' | 'Não' | null>(null);
   const [qualMinisterioFazParte, setQualMinisterioFazParte] = useState<string[]>([]);
   const [querParticiparMinisterio, setQuerParticiparMinisterio] = useState<'Sim' | 'Não' | null>(null);
@@ -225,13 +225,27 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   const [conjugeIgrejaBatismo, setConjugeIgrejaBatismo] = useState('');
   const [conjugeDataBatismo, setConjugeDataBatismo] = useState('');
   const [conjugeBatismoNaoRecordo, setConjugeBatismoNaoRecordo] = useState(false);
-  const [conjugeArrolamento, setConjugeArrolamento] = useState('ADMISSÃO');
+  const [conjugeArrolamento, setConjugeArrolamento] = useState<'ADMISSÃO' | 'FREQUENTADOR' | 'NAO_FREQUENTA'>('ADMISSÃO');
   const [conjugeDataUniao, setConjugeDataUniao] = useState('');
 
-  // --- ESTADOS DOS FILHOS ---
+  // --- ESTADOS DOS FILHOS (Com suporte a NAO_FREQUENTA) ---
   const [possuiFilhos, setPossuiFilhos] = useState<'Sim' | 'Não' | null>(null);
   const [filhos, setFilhos] = useState<Filho[]>([
-    { nome: '', cpf: '', dataNascimento: '', genero: 'Masculino', telefone: '', email: '', emailNaoSeAplica: false, foiBatizado: '', tipoBatismo: 'Imersão', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }
+    { 
+      nome: '', 
+      cpf: '', 
+      dataNascimento: '', 
+      genero: 'Masculino', 
+      telefone: '', 
+      email: '', 
+      emailNaoSeAplica: false, 
+      foiBatizado: '', 
+      tipoBatismo: 'Imersão', 
+      igrejaBatismo: '', 
+      dataBatismo: '', 
+      batismoNaoRecordo: false, 
+      arrolamento: 'FREQUENTADOR' 
+    }
   ]);
 
   // APIs IBGE
@@ -352,7 +366,21 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
   };
 
   const adicionarFilho = () => {
-    setFilhos([...filhos, { nome: '', cpf: '', dataNascimento: '', genero: 'Masculino', telefone: '', email: '', emailNaoSeAplica: false, foiBatizado: '', tipoBatismo: 'Imersão', igrejaBatismo: '', dataBatismo: '', batismoNaoRecordo: false, arrolamento: 'FREQUENTADOR' }]);
+    setFilhos([...filhos, { 
+      nome: '', 
+      cpf: '', 
+      dataNascimento: '', 
+      genero: 'Masculino', 
+      telefone: '', 
+      email: '', 
+      emailNaoSeAplica: false, 
+      foiBatizado: '', 
+      tipoBatismo: 'Imersão', 
+      igrejaBatismo: '', 
+      dataBatismo: '', 
+      batismoNaoRecordo: false, 
+      arrolamento: 'FREQUENTADOR' 
+    }]);
   };
   const removerFilho = (index: number) => {
     setFilhos(filhos.filter((_, i) => i !== index));
@@ -414,7 +442,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
         rolarParaOErro('O e-mail do cônjuge é obrigatório ou marque a opção "Não se aplica".');
         return;
       }
-      if (!conjugeBatizado) {
+      if (conjugeArrolamento !== 'NAO_FREQUENTA' && !conjugeBatizado) {
         rolarParaOErro('Por favor, indique se o seu cônjuge já foi batizado (Sim ou Não).');
         return;
       }
@@ -431,7 +459,8 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           rolarParaOErro(`O CPF do filho #${i + 1} (${filhos[i].nome || 'sem nome'}) é inválido.`);
           return;
         }
-        if (!filhos[i].foiBatizado) {
+        // Se o filho for NAO_FREQUENTA, não exige validação de batismo
+        if (filhos[i].arrolamento !== 'NAO_FREQUENTA' && !filhos[i].foiBatizado) {
           rolarParaOErro(`Por favor, indique se o filho #${i + 1} (${filhos[i].nome || 'sem nome'}) é batizado.`);
           return;
         }
@@ -474,7 +503,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
     ejecutarEnvioSupabase();
   }
 
-  // ENVIO REESTRUTURADO (OPÇÃO A): Salva apenas 1 registro único do Titular
+  // ENVIO: Salva registro único com metadados estruturados
   async function ejecutarEnvioSupabase() {
     setLoading(true);
     const supabase = createClient();
@@ -489,7 +518,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
 
     const emailFinal = emailNaoSeAplica ? 'NÃO SE APLICA' : email;
 
-    // Constrói o payload com dados familiares guardados como metadados aninhados
     const payloadMembro = {
       nome, 
       genero, 
@@ -529,19 +557,26 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           isDoador: conjugeDoador, 
           nomePai: conjugePaiNaoConsta ? 'NÃO CONSTA' : conjugePai,
           nomeMae: conjugeMae, 
-          foiBatizado: conjugeBatizado || 'Não informado', 
-          tipoBatismo: conjugeTipoBatismo, 
-          igrejaBatismo: conjugeIgrejaBatismo,
-          dataBatismo: conjugeBatismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(conjugeDataBatismo),
+          foiBatizado: conjugeArrolamento === 'NAO_FREQUENTA' ? 'NÃO APLICÁVEL' : (conjugeBatizado || 'Não informado'), 
+          tipoBatismo: conjugeArrolamento === 'NAO_FREQUENTA' ? null : conjugeTipoBatismo, 
+          igrejaBatismo: conjugeArrolamento === 'NAO_FREQUENTA' ? null : conjugeIgrejaBatismo,
+          dataBatismo: conjugeArrolamento === 'NAO_FREQUENTA' ? null : (conjugeBatismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(conjugeDataBatismo)),
           arrolamento: conjugeArrolamento
         } : null,
         dataUniao: formatarParaISO(conjugeDataUniao),
-        filhos: possuiFilhos === 'Sim' ? filhos.map(f => ({
-          ...f, 
-          email: f.emailNaoSeAplica ? 'NÃO SE APLICA' : f.email,
-          dataNascimento: formatarParaISO(f.dataNascimento), 
-          dataBatismo: f.batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(f.dataBatismo)
-        })) : []
+        filhos: possuiFilhos === 'Sim' ? filhos.map(f => {
+          const naoFrequenta = f.arrolamento === 'NAO_FREQUENTA';
+          return {
+            ...f, 
+            email: f.emailNaoSeAplica ? 'NÃO SE APLICA' : f.email,
+            dataNascimento: formatarParaISO(f.dataNascimento), 
+            foiBatizado: naoFrequenta ? 'NÃO APLICÁVEL' : (f.foiBatizado || 'Não informado'),
+            tipoBatismo: naoFrequenta ? null : f.tipoBatismo,
+            igrejaBatismo: naoFrequenta ? null : f.igrejaBatismo,
+            dataBatismo: naoFrequenta ? null : (f.batismoNaoRecordo ? 'NÃO ME RECORDO' : formatarParaISO(f.dataBatismo)),
+            arrolamento: f.arrolamento
+          };
+        }) : []
       },
       campos_extra: {
         ...respostasCustomizadas, 
@@ -556,7 +591,6 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
       }
     };
 
-    // Insere exclusivamente a ficha do Titular
     const res = await fetch('/api/membros/inscrever', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -820,7 +854,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
             </div>
           </div>
 
-          {/* FICHA DO CÔNJUGE (Salva dentro de dados_familiares) */}
+          {/* FICHA DO CÔNJUGE */}
           {estadoCivil === 'Casado(a)' && (
             <div className="mt-6 sm:mt-8 p-4 sm:p-8 bg-iba-cream/40 dark:bg-neutral-800/30 border-l-4 border-l-iba-green border border-iba-sand dark:border-neutral-800 rounded-2xl space-y-4 sm:space-y-6 animate-fadeIn">
               <div className="flex items-center gap-2">
@@ -846,23 +880,32 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                   {errorsByField.conjugeCpf && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeCpf}</span>}
                 </div>
 
-                <div className="flex flex-col gap-1.5 sm:gap-2">
-                  <label className={labelStyle}>Vínculo do Cônjuge <span className="text-red-500">*</span></label>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2 lg:col-span-2">
+                  <label className={labelStyle}>Vínculo do Cônjuge com a Igreja <span className="text-red-500">*</span></label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {[
-                      { label: 'Membro', val: 'ADMISSÃO' },
-                      { label: 'Congregante', val: 'FREQUENTADOR' }
+                      { label: 'Membro 2IBA', val: 'ADMISSÃO' },
+                      { label: 'Congregante', val: 'FREQUENTADOR' },
+                      { label: 'Não Frequenta', val: 'NAO_FREQUENTA' }
                     ].map((opt) => {
                       const ativo = conjugeArrolamento === opt.val;
                       return (
                         <button
                           type="button"
                           key={opt.val}
-                          onClick={() => setConjugeArrolamento(opt.val)}
-                          className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                          onClick={() => {
+                            setConjugeArrolamento(opt.val as any);
+                            if (opt.val === 'NAO_FREQUENTA') {
+                              setConjugeBatizado(null);
+                              setConjugeIgrejaBatismo('');
+                              setConjugeDataBatismo('');
+                              setConjugeBatismoNaoRecordo(false);
+                            }
+                          }}
+                          className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
                             ativo 
                               ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
-                              : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                              : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300 hover:border-iba-green/40'
                           }`}
                         >
                           {opt.label}
@@ -957,67 +1000,77 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                   {errorsByField.conjugeEmail && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeEmail}</span>}
                 </div>
 
-                <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2 lg:col-span-3 border-t border-iba-sand dark:border-neutral-700 pt-4 mt-2">
-                  <label className={labelStyle}>O Cônjuge já foi batizado? <span className="text-red-500">*</span></label>
-                  <div className="grid grid-cols-2 gap-2 max-w-xs">
-                    {(['Sim', 'Não'] as const).map((opcao) => {
-                      const ativo = conjugeBatizado === opcao;
-                      return (
-                        <button
-                          type="button"
-                          key={opcao}
-                          onClick={() => setConjugeBatizado(opcao)}
-                          className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                            ativo 
-                              ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
-                              : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
-                          }`}
-                        >
-                          {opcao}
-                        </button>
-                      );
-                    })}
+                {conjugeArrolamento === 'NAO_FREQUENTA' ? (
+                  <div className="col-span-1 md:col-span-2 lg:col-span-3 border-t border-iba-sand dark:border-neutral-700 pt-4 mt-2">
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 bg-iba-cream/30 dark:bg-neutral-800/30 p-3.5 rounded-xl border border-dashed border-iba-sand dark:border-neutral-700">
+                      ℹ️ O cônjuge foi classificado apenas para fins de <strong>registro civil familiar</strong>. Dados eclesiásticos (como batismo) foram omitidos.
+                    </p>
                   </div>
-                </div>
-
-                {conjugeBatizado === 'Sim' && (
+                ) : (
                   <>
-                    <div className="flex flex-col gap-1.5 sm:gap-2">
-                      <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
-                      <select required value={conjugeTipoBatismo} onChange={(e) => setConjugeTipoBatismo(e.target.value)} className={inputStyle}>
-                        <option value="Imersão">Imersão</option>
-                        <option value="Aspersão">Aspersão</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 sm:gap-2">
-                      <label className={labelStyle}>Igreja do Batismo <span className="text-red-500">*</span></label>
-                      <input type="text" required value={conjugeIgrejaBatismo} onChange={(e) => setConjugeIgrejaBatismo(e.target.value)} placeholder="Nome da igreja" className={inputStyle} />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2 lg:col-span-1">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
-                        <label className={labelStyle}>
-                          Data do Batismo do Cônjuge {!conjugeBatismoNaoRecordo && <span className="text-red-500">*</span>}
-                        </label>
-                        <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
-                          <input type="checkbox" checked={conjugeBatismoNaoRecordo} onChange={(e) => setConjugeBatismoNaoRecordo(e.target.checked)} className="rounded text-iba-green focus:ring-iba-green" />
-                          Não me recordo
-                        </label>
+                    <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2 lg:col-span-3 border-t border-iba-sand dark:border-neutral-700 pt-4 mt-2">
+                      <label className={labelStyle}>O Cônjuge já foi batizado? <span className="text-red-500">*</span></label>
+                      <div className="grid grid-cols-2 gap-2 max-w-xs">
+                        {(['Sim', 'Não'] as const).map((opcao) => {
+                          const ativo = conjugeBatizado === opcao;
+                          return (
+                            <button
+                              type="button"
+                              key={opcao}
+                              onClick={() => setConjugeBatizado(opcao)}
+                              className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                                ativo 
+                                  ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                                  : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                              }`}
+                            >
+                              {opcao}
+                            </button>
+                          );
+                        })}
                       </div>
-                      <input 
-                        type="text" 
-                        required={!conjugeBatismoNaoRecordo} 
-                        disabled={conjugeBatismoNaoRecordo} 
-                        maxLength={10} 
-                        placeholder={conjugeBatismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
-                        value={conjugeBatismoNaoRecordo ? '' : conjugeDataBatismo} 
-                        onChange={(e) => setConjugeDataBatismo(aplicarMascaraData(e.target.value))} 
-                        onBlur={(e) => !conjugeBatismoNaoRecordo && validarCampoEmTempoReal('conjugeDataBatismo', e.target.value)}
-                        className={`${inputStyle} disabled:opacity-50 ${errorsByField.conjugeDataBatismo ? inputErrorStyle : ''}`} 
-                      />
-                      {errorsByField.conjugeDataBatismo && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeDataBatismo}</span>}
                     </div>
+
+                    {conjugeBatizado === 'Sim' && (
+                      <>
+                        <div className="flex flex-col gap-1.5 sm:gap-2">
+                          <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
+                          <select required value={conjugeTipoBatismo} onChange={(e) => setConjugeTipoBatismo(e.target.value)} className={inputStyle}>
+                            <option value="Imersão">Imersão</option>
+                            <option value="Aspersão">Aspersão</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 sm:gap-2">
+                          <label className={labelStyle}>Igreja do Batismo <span className="text-red-500">*</span></label>
+                          <input type="text" required value={conjugeIgrejaBatismo} onChange={(e) => setConjugeIgrejaBatismo(e.target.value)} placeholder="Nome da igreja" className={inputStyle} />
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2 lg:col-span-1">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
+                            <label className={labelStyle}>
+                              Data do Batismo do Cônjuge {!conjugeBatismoNaoRecordo && <span className="text-red-500">*</span>}
+                            </label>
+                            <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                              <input type="checkbox" checked={conjugeBatismoNaoRecordo} onChange={(e) => setConjugeBatismoNaoRecordo(e.target.checked)} className="rounded text-iba-green focus:ring-iba-green" />
+                              Não me recordo
+                            </label>
+                          </div>
+                          <input 
+                            type="text" 
+                            required={!conjugeBatismoNaoRecordo} 
+                            disabled={conjugeBatismoNaoRecordo} 
+                            maxLength={10} 
+                            placeholder={conjugeBatismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
+                            value={conjugeBatismoNaoRecordo ? '' : conjugeDataBatismo} 
+                            onChange={(e) => setConjugeDataBatismo(aplicarMascaraData(e.target.value))} 
+                            onBlur={(e) => !conjugeBatismoNaoRecordo && validarCampoEmTempoReal('conjugeDataBatismo', e.target.value)}
+                            className={`${inputStyle} disabled:opacity-50 ${errorsByField.conjugeDataBatismo ? inputErrorStyle : ''}`} 
+                          />
+                          {errorsByField.conjugeDataBatismo && <span className="text-xs text-red-500 font-semibold">{errorsByField.conjugeDataBatismo}</span>}
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -1025,7 +1078,7 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
           )}
         </div>
 
-        {/* SEÇÃO 2: NÚCLEO FAMILIAR (Salvo dentro de dados_familiares) */}
+        {/* SEÇÃO 2: NÚCLEO FAMILIAR (Com suporte a NÃO FREQUENTA para filhos) */}
         <div className="p-5 sm:p-9 border-b border-iba-sand/50 dark:border-neutral-800">
           <div className="flex items-center gap-3 mb-5 sm:mb-6">
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-iba-green text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-none shadow-sm">2</span>
@@ -1064,197 +1117,222 @@ export default function MemberForm({ customFields }: { customFields?: any[] }) {
                 </button>
               </div>
 
-              {filhos.map((filho, idx) => (
-                <div key={idx} className="p-4 sm:p-5 bg-iba-cream/30 dark:bg-neutral-800/20 border border-iba-sand dark:border-neutral-800 rounded-xl space-y-3.5 sm:space-y-4 shadow-sm animate-fadeIn">
-                  <div className="flex justify-between items-center pb-2 border-b border-iba-sand/50 dark:border-neutral-800">
-                    <span className="text-xs font-bold text-iba-green">Filho #{idx + 1}</span>
-                    {filhos.length > 1 && (
-                      <button type="button" onClick={() => removerFilho(idx)} className="text-xs font-bold text-red-500 hover:underline cursor-pointer">Remover</button>
-                    )}
-                  </div>
+              {filhos.map((filho, idx) => {
+                const filhoNaoFrequenta = filho.arrolamento === 'NAO_FREQUENTA';
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-                    <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-3">
-                      <label className={labelStyle}>Nome do Filho <span className="text-red-500">*</span></label>
-                      <input type="text" required value={filho.nome} onChange={(e) => atualizarFilho(idx, 'nome', e.target.value)} placeholder="Nome completo" className={inputStyle} />
+                return (
+                  <div key={idx} className="p-4 sm:p-5 bg-iba-cream/30 dark:bg-neutral-800/20 border border-iba-sand dark:border-neutral-800 rounded-xl space-y-3.5 sm:space-y-4 shadow-sm animate-fadeIn">
+                    <div className="flex justify-between items-center pb-2 border-b border-iba-sand/50 dark:border-neutral-800">
+                      <span className="text-xs font-bold text-iba-green">Filho {idx + 1}</span>
+                      {filhos.length > 1 && (
+                        <button type="button" onClick={() => removerFilho(idx)} className="text-xs font-bold text-red-500 hover:underline cursor-pointer">Remover</button>
+                      )}
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className={labelStyle}>CPF do Filho (Opcional)</label>
-                      <input 
-                        type="text" 
-                        value={filho.cpf} 
-                        onChange={(e) => handleCpfChange(e, (v: string) => atualizarFilho(idx, 'cpf', v))} 
-                        onBlur={(e) => validarCampoEmTempoReal(`filhoCpf_${idx}`, e.target.value)}
-                        placeholder="000.000.000-00" 
-                        className={`${inputStyle} ${errorsByField[`filhoCpf_${idx}`] ? inputErrorStyle : ''}`} 
-                      />
-                      {errorsByField[`filhoCpf_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoCpf_${idx}`]}</span>}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className={labelStyle}>Data de Nascimento <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" 
-                        required 
-                        placeholder="DD/MM/AAAA" 
-                        value={filho.dataNascimento} 
-                        onChange={(e) => atualizarFilho(idx, 'dataNascimento', aplicarMascaraData(e.target.value))} 
-                        onBlur={(e) => validarCampoEmTempoReal(`filhoDataNasc_${idx}`, e.target.value)}
-                        className={`${inputStyle} ${errorsByField[`filhoDataNasc_${idx}`] ? inputErrorStyle : ''}`} 
-                      />
-                      {errorsByField[`filhoDataNasc_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataNasc_${idx}`]}</span>}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className={labelStyle}>Gênero <span className="text-red-500">*</span></label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(['Masculino', 'Feminino'] as const).map((opcao) => {
-                          const ativo = filho.genero === opcao;
-                          return (
-                            <button
-                              type="button"
-                              key={opcao}
-                              onClick={() => atualizarFilho(idx, 'genero', opcao)}
-                              className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                                ativo 
-                                  ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
-                                  : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
-                              }`}
-                            >
-                              {opcao}
-                            </button>
-                          );
-                        })}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+                      <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-3">
+                        <label className={labelStyle}>Nome do Filho <span className="text-red-500">*</span></label>
+                        <input type="text" required value={filho.nome} onChange={(e) => atualizarFilho(idx, 'nome', e.target.value)} placeholder="Nome completo" className={inputStyle} />
                       </div>
-                    </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className={labelStyle}>Vínculo <span className="text-red-500">*</span></label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { label: 'Congregante', val: 'FREQUENTADOR' },
-                          { label: 'Membro', val: 'ADMISSÃO' }
-                        ].map((opt) => {
-                          const ativo = filho.arrolamento === opt.val;
-                          return (
-                            <button
-                              type="button"
-                              key={opt.val}
-                              onClick={() => atualizarFilho(idx, 'arrolamento', opt.val)}
-                              className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                                ativo 
-                                  ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
-                                  : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          );
-                        })}
+                      <div className="flex flex-col gap-1.5">
+                        <label className={labelStyle}>CPF do Filho (Opcional)</label>
+                        <input 
+                          type="text" 
+                          value={filho.cpf} 
+                          onChange={(e) => handleCpfChange(e, (v: string) => atualizarFilho(idx, 'cpf', v))} 
+                          onBlur={(e) => validarCampoEmTempoReal(`filhoCpf_${idx}`, e.target.value)}
+                          placeholder="000.000.000-00" 
+                          className={`${inputStyle} ${errorsByField[`filhoCpf_${idx}`] ? inputErrorStyle : ''}`} 
+                        />
+                        {errorsByField[`filhoCpf_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoCpf_${idx}`]}</span>}
                       </div>
-                    </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex justify-between items-center">
-                        <label className={labelStyle}>
-                          E-mail do Filho {!filho.emailNaoSeAplica && <span className="text-red-500">*</span>}
-                        </label>
-                        <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={filho.emailNaoSeAplica} 
-                            onChange={(e) => {
-                              atualizarFilho(idx, 'emailNaoSeAplica', e.target.checked);
-                              if (e.target.checked) {
-                                atualizarFilho(idx, 'email', '');
-                                setErrorsByField(prev => ({ ...prev, [`filhoEmail_${idx}`]: '' }));
-                              }
-                            }} 
-                            className="rounded text-iba-green focus:ring-iba-green cursor-pointer" 
-                          />
-                          Não se aplica
-                        </label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className={labelStyle}>Data de Nascimento <span className="text-red-500">*</span></label>
+                        <input 
+                          type="text" 
+                          required 
+                          placeholder="DD/MM/AAAA" 
+                          value={filho.dataNascimento} 
+                          onChange={(e) => atualizarFilho(idx, 'dataNascimento', aplicarMascaraData(e.target.value))} 
+                          onBlur={(e) => validarCampoEmTempoReal(`filhoDataNasc_${idx}`, e.target.value)}
+                          className={`${inputStyle} ${errorsByField[`filhoDataNasc_${idx}`] ? inputErrorStyle : ''}`} 
+                        />
+                        {errorsByField[`filhoDataNasc_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataNasc_${idx}`]}</span>}
                       </div>
-                      <input 
-                        type="email" 
-                        required={!filho.emailNaoSeAplica} 
-                        disabled={filho.emailNaoSeAplica}
-                        value={filho.emailNaoSeAplica ? '' : filho.email} 
-                        onChange={(e) => atualizarFilho(idx, 'email', e.target.value)} 
-                        onBlur={(e) => !filho.emailNaoSeAplica && validarCampoEmTempoReal(`filhoEmail_${idx}`, e.target.value)}
-                        placeholder={filho.emailNaoSeAplica ? "Não se aplica" : "filho@email.com"} 
-                        className={`${inputStyle} disabled:opacity-50 ${errorsByField[`filhoEmail_${idx}`] ? inputErrorStyle : ''}`} 
-                      />
-                      {errorsByField[`filhoEmail_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoEmail_${idx}`]}</span>}
-                    </div>
 
-                    <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-3 border-t border-iba-sand/50 dark:border-neutral-800 pt-3 mt-1">
-                      <label className={labelStyle}>O filho já foi batizado? <span className="text-red-500">*</span></label>
-                      <div className="grid grid-cols-2 gap-2 max-w-xs">
-                        {(['Sim', 'Não'] as const).map((opcao) => {
-                          const ativo = filho.foiBatizado === opcao;
-                          return (
-                            <button
-                              type="button"
-                              key={opcao}
-                              onClick={() => atualizarFilho(idx, 'foiBatizado', opcao)}
-                              className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                                ativo 
-                                  ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
-                                  : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
-                              }`}
-                            >
-                              {opcao}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {filho.foiBatizado === 'Sim' && (
-                      <>
-                        <div className="flex flex-col gap-1.5">
-                          <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
-                          <select required value={filho.tipoBatismo} onChange={(e) => atualizarFilho(idx, 'tipoBatismo', e.target.value)} className={inputStyle}>
-                            <option value="Imersão">Imersão</option>
-                            <option value="Aspersão">Aspersão</option>
-                          </select>
+                      <div className="flex flex-col gap-1.5">
+                        <label className={labelStyle}>Gênero <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(['Masculino', 'Feminino'] as const).map((opcao) => {
+                            const ativo = filho.genero === opcao;
+                            return (
+                              <button
+                                type="button"
+                                key={opcao}
+                                onClick={() => atualizarFilho(idx, 'genero', opcao)}
+                                className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                                  ativo 
+                                    ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                                    : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                                }`}
+                              >
+                                {opcao}
+                              </button>
+                            );
+                          })}
                         </div>
+                      </div>
 
-                        <div className="flex flex-col gap-1.5">
-                          <label className={labelStyle}>Igreja do Batismo <span className="text-red-500">*</span></label>
-                          <input type="text" required value={filho.igrejaBatismo} onChange={(e) => atualizarFilho(idx, 'igrejaBatismo', e.target.value)} placeholder="Nome da igreja" className={inputStyle} />
+                      {/* VÍNCULO DO FILHO COM A OPÇÃO 2 */}
+                      <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-2">
+                        <label className={labelStyle}>Vínculo do Filho com a Igreja <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {[
+                            { label: 'Membro', val: 'ADMISSÃO' },
+                            { label: 'Congregante', val: 'FREQUENTADOR' },
+                            { label: 'Não Frequenta', val: 'NAO_FREQUENTA' }
+                          ].map((opt) => {
+                            const ativo = filho.arrolamento === opt.val;
+                            return (
+                              <button
+                                type="button"
+                                key={opt.val}
+                                onClick={() => {
+                                  atualizarFilho(idx, 'arrolamento', opt.val);
+                                  if (opt.val === 'NAO_FREQUENTA') {
+                                    atualizarFilho(idx, 'foiBatizado', '');
+                                    atualizarFilho(idx, 'igrejaBatismo', '');
+                                    atualizarFilho(idx, 'dataBatismo', '');
+                                    atualizarFilho(idx, 'batismoNaoRecordo', false);
+                                  }
+                                }}
+                                className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                                  ativo 
+                                    ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                                    : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300 hover:border-iba-green/40'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
                         </div>
+                      </div>
 
-                        <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-1">
-                          <div className="flex justify-between items-center">
-                            <label className={labelStyle}>
-                              Data do Batismo {!filho.batismoNaoRecordo && <span className="text-red-500">*</span>}
-                            </label>
-                            <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
-                              <input type="checkbox" checked={filho.batismoNaoRecordo} onChange={(e) => atualizarFilho(idx, 'batismoNaoRecordo', e.target.checked)} className="rounded text-iba-green focus:ring-iba-green" />
-                              Não me recordo
-                            </label>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className={labelStyle}>
+                            E-mail do Filho {!filho.emailNaoSeAplica && <span className="text-red-500">*</span>}
+                          </label>
+                          <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={filho.emailNaoSeAplica} 
+                              onChange={(e) => {
+                                atualizarFilho(idx, 'emailNaoSeAplica', e.target.checked);
+                                if (e.target.checked) {
+                                  atualizarFilho(idx, 'email', '');
+                                  setErrorsByField(prev => ({ ...prev, [`filhoEmail_${idx}`]: '' }));
+                                }
+                              }} 
+                              className="rounded text-iba-green focus:ring-iba-green cursor-pointer" 
+                            />
+                            Não se aplica
+                          </label>
+                        </div>
+                        <input 
+                          type="email" 
+                          required={!filho.emailNaoSeAplica} 
+                          disabled={filho.emailNaoSeAplica}
+                          value={filho.emailNaoSeAplica ? '' : filho.email} 
+                          onChange={(e) => atualizarFilho(idx, 'email', e.target.value)} 
+                          onBlur={(e) => !filho.emailNaoSeAplica && validarCampoEmTempoReal(`filhoEmail_${idx}`, e.target.value)}
+                          placeholder={filho.emailNaoSeAplica ? "Não se aplica" : "filho@email.com"} 
+                          className={`${inputStyle} disabled:opacity-50 ${errorsByField[`filhoEmail_${idx}`] ? inputErrorStyle : ''}`} 
+                        />
+                        {errorsByField[`filhoEmail_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoEmail_${idx}`]}</span>}
+                      </div>
+
+                      {/* BLOCO CONDICIONAL DO FILHO */}
+                      {filhoNaoFrequenta ? (
+                        <div className="col-span-1 md:col-span-2 lg:col-span-3 border-t border-iba-sand/50 dark:border-neutral-800 pt-3 mt-1">
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 bg-iba-cream/30 dark:bg-neutral-800/30 p-3 rounded-xl border border-dashed border-iba-sand dark:border-neutral-700">
+                            ℹ️️ Este dependente foi registrado para fins de <strong>composição familiar</strong>. Dados eclesiásticos foram dispensados.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-3 border-t border-iba-sand/50 dark:border-neutral-800 pt-3 mt-1">
+                            <label className={labelStyle}>O filho já foi batizado? <span className="text-red-500">*</span></label>
+                            <div className="grid grid-cols-2 gap-2 max-w-xs">
+                              {(['Sim', 'Não'] as const).map((opcao) => {
+                                const ativo = filho.foiBatizado === opcao;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={opcao}
+                                    onClick={() => atualizarFilho(idx, 'foiBatizado', opcao)}
+                                    className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                                      ativo 
+                                        ? 'border-iba-green bg-iba-green/10 text-iba-green ring-2 ring-iba-green/20' 
+                                        : 'border-iba-sand dark:border-neutral-700 bg-white dark:bg-iba-darkInput text-neutral-600 dark:text-neutral-300'
+                                    }`}
+                                  >
+                                    {opcao}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                          <input 
-                            type="text" 
-                            required={!filho.batismoNaoRecordo} 
-                            disabled={filho.batismoNaoRecordo} 
-                            maxLength={10} 
-                            placeholder={filho.batismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
-                            value={filho.batismoNaoRecordo ? '' : filho.dataBatismo} 
-                            onChange={(e) => atualizarFilho(idx, 'dataBatismo', aplicarMascaraData(e.target.value))} 
-                            onBlur={(e) => !filho.batismoNaoRecordo && validarCampoEmTempoReal(`filhoDataBatismo_${idx}`, e.target.value)}
-                            className={`${inputStyle} disabled:opacity-50 ${errorsByField[`filhoDataBatismo_${idx}`] ? inputErrorStyle : ''}`} 
-                          />
-                          {errorsByField[`filhoDataBatismo_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataBatismo_${idx}`]}</span>}
-                        </div>
-                      </>
-                    )}
+
+                          {filho.foiBatizado === 'Sim' && (
+                            <>
+                              <div className="flex flex-col gap-1.5">
+                                <label className={labelStyle}>Tipo de Batismo <span className="text-red-500">*</span></label>
+                                <select required value={filho.tipoBatismo} onChange={(e) => atualizarFilho(idx, 'tipoBatismo', e.target.value)} className={inputStyle}>
+                                  <option value="Imersão">Imersão</option>
+                                  <option value="Aspersão">Aspersão</option>
+                                </select>
+                              </div>
+
+                              <div className="flex flex-col gap-1.5">
+                                <label className={labelStyle}>Igreja do Batismo <span className="text-red-500">*</span></label>
+                                <input type="text" required value={filho.igrejaBatismo} onChange={(e) => atualizarFilho(idx, 'igrejaBatismo', e.target.value)} placeholder="Nome da igreja" className={inputStyle} />
+                              </div>
+
+                              <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-1">
+                                <div className="flex justify-between items-center">
+                                  <label className={labelStyle}>
+                                    Data do Batismo {!filho.batismoNaoRecordo && <span className="text-red-500">*</span>}
+                                  </label>
+                                  <label className="text-[11px] text-neutral-500 flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" checked={filho.batismoNaoRecordo} onChange={(e) => atualizarFilho(idx, 'batismoNaoRecordo', e.target.checked)} className="rounded text-iba-green focus:ring-iba-green" />
+                                    Não me recordo
+                                  </label>
+                                </div>
+                                <input 
+                                  type="text" 
+                                  required={!filho.batismoNaoRecordo} 
+                                  disabled={filho.batismoNaoRecordo} 
+                                  maxLength={10} 
+                                  placeholder={filho.batismoNaoRecordo ? "Isento" : "DD/MM/AAAA"} 
+                                  value={filho.batismoNaoRecordo ? '' : filho.dataBatismo} 
+                                  onChange={(e) => atualizarFilho(idx, 'dataBatismo', aplicarMascaraData(e.target.value))} 
+                                  onBlur={(e) => !filho.batismoNaoRecordo && validarCampoEmTempoReal(`filhoDataBatismo_${idx}`, e.target.value)}
+                                  className={`${inputStyle} disabled:opacity-50 ${errorsByField[`filhoDataBatismo_${idx}`] ? inputErrorStyle : ''}`} 
+                                />
+                                {errorsByField[`filhoDataBatismo_${idx}`] && <span className="text-xs text-red-500 font-semibold">{errorsByField[`filhoDataBatismo_${idx}`]}</span>}
+                              </div>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
